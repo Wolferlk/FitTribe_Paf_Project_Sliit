@@ -20,6 +20,7 @@ import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 
 
@@ -27,6 +28,11 @@ import java.util.Optional;
 @CrossOrigin("*")
 @RestController
 @RequestMapping("/api/auth")
+
+
+
+
+
 public class AuthController {
 
     @Autowired
@@ -80,5 +86,19 @@ public class AuthController {
         // check if present in db and not revoked, etc
 
         return ResponseEntity.ok(tokenGenerator.createToken(authentication));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> request) {
+        String token = request.get("credential");
+        // Verify token using Google API
+        return ResponseEntity.ok("Google login successful");
+    }
+
+    @PostMapping("/facebook")
+    public ResponseEntity<?> facebookLogin(@RequestBody Map<String, String> request) {
+        String accessToken = request.get("accessToken");
+        // Verify token using Facebook API
+        return ResponseEntity.ok("Facebook login successful");
     }
 }

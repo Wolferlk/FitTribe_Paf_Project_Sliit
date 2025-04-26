@@ -160,7 +160,7 @@ function Register() {
                 border: "none",
                 cursor: "pointer",
                 transition: "0.3s ease",
-              }}
+              }} 
               onMouseOver={(e) => (e.target.style.backgroundColor = "#0d8ddb")}
               onMouseOut={(e) => (e.target.style.backgroundColor = "#1DA1F2")}
             >
