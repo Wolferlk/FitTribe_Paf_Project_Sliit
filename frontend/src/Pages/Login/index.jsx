@@ -1,299 +1,698 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
-import { login } from "../../app/actions/user.actions";
-import LoginImage from "../../assets/login.png";
-import { useEffect } from "react";
+import { login, register } from "../../app/actions/user.actions";
+import { FaGoogle, FaFacebook, FaInstagram, FaDumbbell, FaUser, FaLock, FaEnvelope } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
+import "bootstrap/dist/css/bootstrap.min.css";
 
-function Login() {
+function AuthPage() {
   const dispatch = useDispatch();
+  const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleLoginSubmit = (e) => {
     e.preventDefault();
     setIsLoading(true);
-    dispatch(login({ username, password })).finally(() => setIsLoading(false));
+    dispatch(login({ username, password }))
+      .then(() => setIsLoading(false))
+      .catch(() => setIsLoading(false));
+  };
+
+  const handleRegisterSubmit = (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    dispatch(register({ username, email, password }))
+      .then(() => setIsLoading(false))
+      .catch(() => setIsLoading(false));
   };
 
   const handleOAuthLogin = (provider) => {
-    // Implementation for OAuth login would go here
+    // Implementation for OAuth 2.0 login with different providers
     console.log(`Logging in with ${provider}`);
-    // This would typically redirect to the OAuth provider's auth page
+    // Redirect to OAuth provider
   };
 
-  // Simple animation effect on mount
-  useEffect(() => {
-    const loginCard = document.getElementById("login-card");
-    const leftPanel = document.getElementById("left-panel");
-    const rightPanel = document.getElementById("right-panel");
-    
-    // Apply animations after component mounts
-    setTimeout(() => {
-      loginCard.classList.add("show");
-      leftPanel.classList.add("slide-in-left");
-      rightPanel.classList.add("slide-in-right");
-    }, 100);
-  }, []);
+  const toggleAuthMode = () => {
+    setIsLogin(!isLogin);
+  };
+
+  // Animation variants for framer-motion
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { duration: 0.8 }
+    }
+  };
+
+  const slideVariants = {
+    hidden: { opacity: 0, x: isLogin ? 50 : -50 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.6 } },
+    exit: { opacity: 0, x: isLogin ? -50 : 50, transition: { duration: 0.6 } }
+  };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center" 
-         style={{
-           background: "linear-gradient(135deg, #e8f4fd, #f0e8fd)",
-           fontFamily: "'Poppins', 'Segoe UI', sans-serif"
-         }}>
-      
-      {/* CSS for animations */}
-      <style>
-        {`
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          
-          @keyframes slideInLeft {
-            from { opacity: 0; transform: translateX(-50px); }
-            to { opacity: 1; transform: translateX(0); }
-          }
-          
-          @keyframes slideInRight {
-            from { opacity: 0; transform: translateX(50px); }
-            to { opacity: 1; transform: translateX(0); }
-          }
-          
-          @keyframes floatingShape {
-            0% { transform: translateY(0) rotate(0deg); }
-            50% { transform: translateY(-15px) rotate(5deg); }
-            100% { transform: translateY(0) rotate(0deg); }
-          }
-          
-          .shape {
-            position: absolute;
-            border-radius: 50%;
-            opacity: 0.2;
-          }
-          
-          .shape-1 {
-            width: 150px;
-            height: 150px;
-            background-color: #4361ee;
-            top: -20px;
-            left: -50px;
-            animation: floatingShape 8s ease-in-out infinite;
-          }
-          
-          .shape-2 {
-            width: 100px;
-            height: 100px;
-            background-color: #3a0ca3;
-            bottom: 30%;
-            right: -30px;
-            animation: floatingShape 10s ease-in-out infinite;
-          }
-          
-          .shape-3 {
-            width: 70px;
-            height: 70px;
-            background-color: #4cc9f0;
-            bottom: -20px;
-            left: 30%;
-            animation: floatingShape 7s ease-in-out infinite;
-          }
-          
-          #login-card {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          
-          #login-card.show {
-            animation: fadeIn 0.6s ease-out forwards;
-          }
-          
-          #left-panel {
-            opacity: 0;
-          }
-          
-          #left-panel.slide-in-left {
-            animation: slideInLeft 0.8s ease-out 0.3s forwards;
-          }
-          
-          #right-panel {
-            opacity: 0;
-          }
-          
-          #right-panel.slide-in-right {
-            animation: slideInRight 0.8s ease-out 0.3s forwards;
-          }
-          
-          .btn-social:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-          }
-          
-          .btn-social {
-            transition: all 0.3s ease;
-            width: 45px;
-            height: 45px;
-          }
-          
-          .btn-submit {
-            transition: all 0.3s ease;
-          }
-          
-          .btn-submit:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-          }
-        `}
-      </style>
-      
-      <div className="container p-2">
-        <div className="card shadow border-0 rounded-4" id="login-card" style={{ maxWidth: "950px", overflow: "hidden" }}>
-          <div className="row g-0">
-            {/* Left Panel */}
-            <div className="col-md-6" id="left-panel" style={{ background: "linear-gradient(135deg, #4361ee, #3a0ca3)", position: "relative", overflow: "hidden" }}>
-              <div className="shape shape-1"></div>
-              <div className="shape shape-2"></div>
-              <div className="shape shape-3"></div>
-              
-              <div className="d-flex flex-column justify-content-center align-items-center text-white p-5 h-100 position-relative">
-                <h1 className="fw-bold mb-4" style={{ fontSize: "2rem" }}>TEST YOUR TASTEBUDS</h1>
-                <p className="text-center mb-4 fs-5 text-light">Discover new flavors, share your favorites</p>
-                <div className="text-center p-3 rounded-circle bg-white bg-opacity-10" 
-                     style={{ width: "220px", height: "220px", backdropFilter: "blur(5px)" }}>
-                  <img
-                    src={LoginImage || "/api/placeholder/200/200"}
-                    alt="Login"
-                    className="img-fluid rounded-circle p-2"
-                    style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "cover" }}
-                  />
-                </div>
-              </div>
-            </div>
+    <div style={{
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "20px",
+      background: "linear-gradient(135deg, #0a0a0a, #1a1a1a)"
+    }}>
+      <div className="container">
+        <div className="row" style={{
+          borderRadius: "20px",
+          overflow: "hidden",
+          maxWidth: "1000px",
+          margin: "0 auto",
+          boxShadow: "0 15px 50px rgba(0,0,0,0.3)"
+        }}>
+          {/* Left Section - Branding and Animation */}
+          <motion.div 
+            className="col-md-6"
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
+            style={{
+              background: "linear-gradient(45deg, #1e3c72, #2a5298)",
+              padding: "3rem",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              position: "relative",
+              overflow: "hidden",
+              color: "white"
+            }}
+          >
+            {/* Pattern overlay */}
+            <div style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffffff' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E\")",
+              pointerEvents: "none"
+            }}></div>
             
-            {/* Right Panel */}
-            <div className="col-md-6" id="right-panel">
-              <div className="card-body p-4 p-md-5">
-                <h2 className="card-title text-center fw-bold mb-4">Welcome Back!</h2>
-                
-                {/* Social Login */}
-                <div className="mb-4 text-center">
-                  <p className="text-muted mb-3">Login with</p>
-                  <div className="d-flex justify-content-center gap-3 mb-3">
-                    <button 
-                      onClick={() => handleOAuthLogin('Google')} 
-                      className="btn btn-light btn-social rounded-circle d-flex align-items-center justify-content-center"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24">
-                        <path
-                          fill="#4285F4"
-                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        />
-                        <path
-                          fill="#34A853"
-                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        />
-                        <path
-                          fill="#FBBC05"
-                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                        />
-                        <path
-                          fill="#EA4335"
-                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                        />
-                      </svg>
-                    </button>
-                    <button 
-                      onClick={() => handleOAuthLogin('Facebook')} 
-                      className="btn btn-primary btn-social rounded-circle d-flex align-items-center justify-content-center"
-                    >
-                      <svg width="10" height="18" viewBox="0 0 10 18" fill="#ffffff">
-                        <path d="M6.067 18V9.782h2.753l.413-3.2H6.067V4.546c0-.927.258-1.558 1.586-1.558h1.695V.125A22.65 22.65 0 0 0 6.878 0C4.436 0 2.763 1.491 2.763 4.23v2.352H0v3.2h2.763V18h3.304Z" />
-                      </svg>
-                    </button>
-                    <button 
-                      onClick={() => handleOAuthLogin('Instagram')} 
-                      className="btn btn-social rounded-circle d-flex align-items-center justify-content-center"
-                      style={{ background: "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)", color: "white" }}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff">
-                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                      </svg>
-                    </button>
-                  </div>
-                  
-                  <div className="d-flex align-items-center my-4">
-                    <hr className="flex-grow-1" />
-                    <span className="px-2 text-muted small">Or login with email</span>
-                    <hr className="flex-grow-1" />
-                  </div>
-                </div>
-                
-                {/* Login Form */}
-                <form onSubmit={handleSubmit}>
-                  <div className="mb-3">
-                    <label htmlFor="username" className="form-label fw-semibold">Username</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-lg"
-                      id="username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Enter your username"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label htmlFor="password" className="form-label fw-semibold">Password</label>
-                    <input
-                      type="password"
-                      className="form-control form-control-lg"
-                      id="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="d-flex justify-content-between align-items-center mb-4">
-                    <div className="form-check">
-                      <input className="form-check-input" type="checkbox" id="rememberMe" />
-                      <label className="form-check-label small" htmlFor="rememberMe">
-                        Remember me
-                      </label>
-                    </div>
-                    <Link to="/forgotpassword" className="text-decoration-none small fw-semibold">
-                      Forgot Password?
-                    </Link>
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    className="btn btn-primary btn-lg w-100 mb-4 btn-submit"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        Logging in...
-                      </>
-                    ) : "Sign In"}
-                  </button>
-                </form>
-                
-                <p className="text-center mt-4 mb-0">
-                  Don't have an account? <Link to="/register" className="text-decoration-none fw-semibold">Register now</Link>
-                </p>
-              </div>
+            <div style={{
+              position: "relative",
+              zIndex: 1,
+              textAlign: "center"
+            }}>
+              <motion.div 
+                style={{
+                  display: "inline-block",
+                  marginBottom: "24px"
+                }}
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, repeatType: "loop", ease: "linear" }}
+              >
+                <FaDumbbell size={60} />
+              </motion.div>
+              
+              <motion.h1 
+                style={{
+                  fontSize: "2.5rem",
+                  fontWeight: "bold",
+                  marginBottom: "25px",
+                  textAlign: "center"
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5, duration: 1 }}
+              >
+                FitTribe
+              </motion.h1>
+              
+              <motion.p 
+                style={{
+                  fontSize: "1.25rem",
+                  marginBottom: "30px"
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7, duration: 1 }}
+              >
+                {isLogin ? "Join the tribe. Transform together." : "Become part of something greater."}
+              </motion.p>
+              
+              <motion.div 
+                style={{
+                  marginTop: "20px"
+                }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.9, duration: 0.8 }}
+              >
+                <img 
+                  src="/api/placeholder/400/300" 
+                  alt="Fitness Community" 
+                  style={{
+                    maxWidth: "100%",
+                    height: "auto",
+                    borderRadius: "12px",
+                    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.3)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.transform = "translateY(-5px)";
+                    e.target.style.boxShadow = "0 15px 30px rgba(0, 0, 0, 0.4)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.3)";
+                  }}
+                />
+              </motion.div>
             </div>
-          </div>
+          </motion.div>
+
+          {/* Right Section - Login/Register Form */}
+          <motion.div 
+            className="col-md-6"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
+            style={{
+              backgroundColor: "#ffffff",
+              padding: "3rem",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center"
+            }}
+          >
+            <div style={{
+              maxWidth: "400px",
+              margin: "0 auto",
+              width: "100%"
+            }}>
+              {/* Auth Mode Toggle */}
+              <div style={{
+                display: "flex",
+                marginBottom: "1.5rem",
+                borderRadius: "10px",
+                overflow: "hidden",
+                border: "1px solid #eaeaea"
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(true)}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    border: "none",
+                    background: isLogin ? "#2a5298" : "#ffffff",
+                    color: isLogin ? "#ffffff" : "#6c757d",
+                    fontWeight: isLogin ? "bold" : "normal",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(false)}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    border: "none",
+                    background: !isLogin ? "#2a5298" : "#ffffff",
+                    color: !isLogin ? "#ffffff" : "#6c757d",
+                    fontWeight: !isLogin ? "bold" : "normal",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  Register
+                </button>
+              </div>
+
+              <AnimatePresence mode="wait">
+                {isLogin ? (
+                  <motion.div
+                    key="login"
+                    variants={slideVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                  >
+                    <h2 style={{
+                      marginBottom: "1.5rem",
+                      textAlign: "center",
+                      fontWeight: "bold",
+                      color: "#333"
+                    }}>Welcome Back!</h2>
+                    
+                    {/* Social Login Buttons */}
+                    <div style={{
+                      marginBottom: "1.5rem"
+                    }}>
+                      <p style={{
+                        textAlign: "center",
+                        color: "#6c757d",
+                        marginBottom: "15px"
+                      }}>Sign in with</p>
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: "12px"
+                      }}>
+                        <motion.button 
+                          type="button" 
+                          className="btn btn-outline-primary"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            borderRadius: "50px",
+                            padding: "8px 16px",
+                            transition: "all 0.3s ease"
+                          }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleOAuthLogin("Google")}
+                        >
+                          <FaGoogle /> Google
+                        </motion.button>
+                        <motion.button 
+                          type="button" 
+                          className="btn btn-outline-primary"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            borderRadius: "50px",
+                            padding: "8px 16px",
+                            transition: "all 0.3s ease"
+                          }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleOAuthLogin("Facebook")}
+                        >
+                          <FaFacebook /> Facebook
+                        </motion.button>
+                        <motion.button 
+                          type="button" 
+                          className="btn btn-outline-primary"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            borderRadius: "50px",
+                            padding: "8px 16px",
+                            transition: "all 0.3s ease"
+                          }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleOAuthLogin("Instagram")}
+                        >
+                          <FaInstagram /> Instagram
+                        </motion.button>
+                      </div>
+                    </div>
+                    
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      margin: "1.5rem 0"
+                    }}>
+                      <div style={{
+                        flexGrow: 1,
+                        height: "1px",
+                        backgroundColor: "#dee2e6"
+                      }}></div>
+                      <span style={{
+                        padding: "0 15px",
+                        color: "#6c757d",
+                        fontSize: "14px"
+                      }}>or</span>
+                      <div style={{
+                        flexGrow: 1,
+                        height: "1px",
+                        backgroundColor: "#dee2e6"
+                      }}></div>
+                    </div>
+
+                    {/* Login Form */}
+                    <form onSubmit={handleLoginSubmit}>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <label htmlFor="username" style={{
+                          marginBottom: "8px",
+                          display: "block",
+                          fontWeight: "500",
+                          color: "#444"
+                        }}>Username</label>
+                        <div className="input-group">
+                          <div className="input-group-prepend">
+                            <span className="input-group-text" style={{
+                              backgroundColor: "#f8f9fa",
+                              borderRadius: "8px 0 0 8px",
+                              padding: "12px"
+                            }}>
+                              <FaUser color="#6c757d" />
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            className="form-control"
+                            id="username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="Enter your username"
+                            required
+                            style={{
+                              padding: "12px",
+                              borderRadius: "0 8px 8px 0",
+                              transition: "all 0.3s ease"
+                            }}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div style={{ marginBottom: "1.5rem" }}>
+                        <label htmlFor="password" style={{
+                          marginBottom: "8px",
+                          display: "block",
+                          fontWeight: "500",
+                          color: "#444"
+                        }}>Password</label>
+                        <div className="input-group">
+                          <div className="input-group-prepend">
+                            <span className="input-group-text" style={{
+                              backgroundColor: "#f8f9fa",
+                              borderRadius: "8px 0 0 8px",
+                              padding: "12px"
+                            }}>
+                              <FaLock color="#6c757d" />
+                            </span>
+                          </div>
+                          <input
+                            type="password"
+                            className="form-control"
+                            id="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Enter your password"
+                            required
+                            style={{
+                              padding: "12px",
+                              borderRadius: "0 8px 8px 0",
+                              transition: "all 0.3s ease"
+                            }}
+                          />
+                        </div>
+                      </div>
+                      
+                      <motion.button
+                        type="submit"
+                        className="btn w-100 mb-3"
+                        style={{
+                          backgroundColor: "#2a5298",
+                          borderColor: "#2a5298",
+                          color: "white",
+                          borderRadius: "8px",
+                          fontWeight: "500",
+                          padding: "12px",
+                          transition: "all 0.3s ease"
+                        }}
+                        whileHover={{ 
+                          scale: 1.02,
+                          backgroundColor: "#1e3c72"
+                        }}
+                        whileTap={{ scale: 0.98 }}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        ) : null}
+                        {isLoading ? "Signing In..." : "Sign In"}
+                      </motion.button>
+                    </form>
+                    
+                    <div style={{
+                      textAlign: "center",
+                      marginTop: "1.5rem"
+                    }}>
+                      <Link to="/forgotpassword" style={{
+                        textDecoration: "none",
+                        color: "#2a5298"
+                      }}>
+                        Forgot Password?
+                      </Link>
+                      <p style={{
+                        marginTop: "15px",
+                        marginBottom: "0"
+                      }}>
+                        Don't have an account?{" "}
+                        <button
+                          type="button"
+                          onClick={toggleAuthMode}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            fontWeight: "bold",
+                            color: "#2a5298",
+                            padding: 0,
+                            cursor: "pointer"
+                          }}
+                        >
+                          Sign Up
+                        </button>
+                      </p>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="register"
+                    variants={slideVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                  >
+                    <h2 style={{
+                      marginBottom: "1.5rem",
+                      textAlign: "center",
+                      fontWeight: "bold",
+                      color: "#333"
+                    }}>Create an Account</h2>
+
+                    {/* Register Form */}
+                    <form onSubmit={handleRegisterSubmit}>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <label htmlFor="reg-username" style={{
+                          marginBottom: "8px",
+                          display: "block",
+                          fontWeight: "500",
+                          color: "#444"
+                        }}>Username</label>
+                        <div className="input-group">
+                          <div className="input-group-prepend">
+                            <span className="input-group-text" style={{
+                              backgroundColor: "#f8f9fa",
+                              borderRadius: "8px 0 0 8px",
+                              padding: "12px"
+                            }}>
+                              <FaUser color="#6c757d" />
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            className="form-control"
+                            id="reg-username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="Choose a username"
+                            required
+                            style={{
+                              padding: "12px",
+                              borderRadius: "0 8px 8px 0",
+                              transition: "all 0.3s ease"
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: "1rem" }}>
+                        <label htmlFor="email" style={{
+                          marginBottom: "8px",
+                          display: "block",
+                          fontWeight: "500",
+                          color: "#444"
+                        }}>Email</label>
+                        <div className="input-group">
+                          <div className="input-group-prepend">
+                            <span className="input-group-text" style={{
+                              backgroundColor: "#f8f9fa",
+                              borderRadius: "8px 0 0 8px",
+                              padding: "12px"
+                            }}>
+                              <FaEnvelope color="#6c757d" />
+                            </span>
+                          </div>
+                          <input
+                            type="email"
+                            className="form-control"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="Enter your email"
+                            required
+                            style={{
+                              padding: "12px",
+                              borderRadius: "0 8px 8px 0",
+                              transition: "all 0.3s ease"
+                            }}
+                          />
+                        </div>
+                        <small style={{ color: "#888", marginTop: "6px", display: "block" }}>
+                          We'll never share your email with anyone else.
+                        </small>
+                      </div>
+                      
+                      <div style={{ marginBottom: "1rem" }}>
+                        <label htmlFor="reg-password" style={{
+                          marginBottom: "8px",
+                          display: "block",
+                          fontWeight: "500",
+                          color: "#444"
+                        }}>Password</label>
+                        <div className="input-group">
+                          <div className="input-group-prepend">
+                            <span className="input-group-text" style={{
+                              backgroundColor: "#f8f9fa",
+                              borderRadius: "8px 0 0 8px",
+                              padding: "12px"
+                            }}>
+                              <FaLock color="#6c757d" />
+                            </span>
+                          </div>
+                          <input
+                            type="password"
+                            className="form-control"
+                            id="reg-password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Create a password"
+                            required
+                            style={{
+                              padding: "12px",
+                              borderRadius: "0 8px 8px 0",
+                              transition: "all 0.3s ease"
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: "1.5rem" }}>
+                        <label htmlFor="confirm-password" style={{
+                          marginBottom: "8px",
+                          display: "block",
+                          fontWeight: "500",
+                          color: "#444"
+                        }}>Confirm Password</label>
+                        <div className="input-group">
+                          <div className="input-group-prepend">
+                            <span className="input-group-text" style={{
+                              backgroundColor: "#f8f9fa",
+                              borderRadius: "8px 0 0 8px",
+                              padding: "12px"
+                            }}>
+                              <FaLock color="#6c757d" />
+                            </span>
+                          </div>
+                          <input
+                            type="password"
+                            className="form-control"
+                            id="confirm-password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="Confirm your password"
+                            required
+                            style={{
+                              padding: "12px",
+                              borderRadius: "0 8px 8px 0",
+                              transition: "all 0.3s ease"
+                            }}
+                          />
+                        </div>
+                      </div>
+                      
+                      <motion.button
+                        type="submit"
+                        className="btn w-100 mb-3"
+                        style={{
+                          backgroundColor: "#2a5298",
+                          borderColor: "#2a5298",
+                          color: "white",
+                          borderRadius: "8px",
+                          fontWeight: "500",
+                          padding: "12px",
+                          transition: "all 0.3s ease"
+                        }}
+                        whileHover={{ 
+                          scale: 1.02,
+                          backgroundColor: "#1e3c72"
+                        }}
+                        whileTap={{ scale: 0.98 }}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        ) : null}
+                        {isLoading ? "Registering..." : "Create Account"}
+                      </motion.button>
+                    </form>
+                    
+                    <div style={{
+                      textAlign: "center",
+                      marginTop: "1.5rem"
+                    }}>
+                      <p style={{
+                        fontSize: "14px",
+                        color: "#6c757d",
+                        marginBottom: "15px"
+                      }}>
+                        By signing up, you agree to our Terms of Service and Privacy Policy
+                      </p>
+                      <p style={{
+                        marginBottom: "0"
+                      }}>
+                        Already have an account?{" "}
+                        <button
+                          type="button"
+                          onClick={toggleAuthMode}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            fontWeight: "bold",
+                            color: "#2a5298",
+                            padding: 0,
+                            cursor: "pointer"
+                          }}
+                        >
+                          Sign In
+                        </button>
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>
   );
 }
 
-export default Login;
+export default AuthPage;
