@@ -153,7 +153,7 @@ function AuthPage() {
                 transition={{ delay: 0.9, duration: 0.8 }}
               >
                 <img 
-                  src="/api/placeholder/400/300" 
+                  src="https://i.ibb.co/zhw0pqC2/Chat-GPT-Image-Apr-27-2025-12-48-54-PM.png" 
                   alt="Fitness Community" 
                   style={{
                     maxWidth: "100%",

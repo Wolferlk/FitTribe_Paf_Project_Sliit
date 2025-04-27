@@ -10,6 +10,7 @@ import Profile from "./Pages/Profile";
 import UserPosts from "./Pages/UserPosts";
 import User from "./Pages/User";
 import SharedPosts from "./Pages/SharedPosts";
+import Messaging from "./Components/Messaging/Messaging";
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
             <Route path="/user" element={<User />} />
             <Route path="/user/:userId" element={<UserPosts />} />
             <Route path="/sharedposts" element={<SharedPosts />} />
+            <Route path="/messaging"element={<Messaging />} />
            
           </Routes>
         </div>
