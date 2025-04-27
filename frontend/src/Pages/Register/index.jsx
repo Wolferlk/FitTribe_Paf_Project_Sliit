@@ -1,7 +1,7 @@
 import React from "react";
 import { useDispatch } from "react-redux";
 import { register } from "../../app/actions/user.actions";
-import RegisterImage from "../../assets/login.png"; // You can use a different image if preferred
+import RegisterImage from "../../assets/login.png"; 
 
 function Register() {
   const dispatch = useDispatch();
