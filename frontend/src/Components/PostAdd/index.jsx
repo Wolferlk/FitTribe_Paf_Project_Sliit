@@ -76,7 +76,7 @@ function PostAdd() {
               onChange={(e) => setCaption(e.target.value)}
             />
           </div>
-            <i>*maximum 4 images</i>
+            {/* <i>*maximum 4 images</i> */}
           <div className="mb-3">
             {imgLink && (
               <img

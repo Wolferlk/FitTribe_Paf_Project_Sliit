@@ -11,6 +11,9 @@ const Messaging = ({ currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [showNewConversationModal, setShowNewConversationModal] = useState(false);
+  const [newContactUsername, setNewContactUsername] = useState('');
+  const [error, setError] = useState('');
   const messagesEndRef = useRef(null);
   const stompClient = useRef(null);
 
@@ -35,15 +38,29 @@ const Messaging = ({ currentUser }) => {
     searchContainer: {
       padding: '15px',
       borderBottom: '1px solid #e0e0e0',
+      display: 'flex',
     },
     searchInput: {
-      width: '100%',
+      flex: 1,
       padding: '10px 15px',
       borderRadius: '20px',
       border: '1px solid #e0e0e0',
       outline: 'none',
       fontSize: '14px',
       backgroundColor: '#fff',
+    },
+    addButton: {
+      marginLeft: '10px',
+      padding: '0 15px',
+      backgroundColor: '#3b82f6',
+      color: 'white',
+      border: 'none',
+      borderRadius: '20px',
+      cursor: 'pointer',
+      transition: 'background-color 0.2s',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     conversationList: {
       flex: 1,
@@ -178,6 +195,75 @@ const Messaging = ({ currentUser }) => {
       textOverflow: 'ellipsis',
       maxWidth: '200px',
     },
+    modal: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+    },
+    modalContent: {
+      backgroundColor: '#fff',
+      borderRadius: '8px',
+      padding: '20px',
+      width: '400px',
+      boxShadow: '0 5px 15px rgba(0, 0, 0, 0.1)',
+    },
+    modalHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '20px',
+    },
+    modalTitle: {
+      fontSize: '18px',
+      fontWeight: 'bold',
+    },
+    closeButton: {
+      background: 'none',
+      border: 'none',
+      fontSize: '20px',
+      cursor: 'pointer',
+    },
+    inputGroup: {
+      marginBottom: '15px',
+    },
+    label: {
+      display: 'block',
+      marginBottom: '5px',
+      fontSize: '14px',
+      color: '#4b5563',
+    },
+    input: {
+      width: '100%',
+      padding: '10px',
+      borderRadius: '4px',
+      border: '1px solid #e0e0e0',
+      fontSize: '14px',
+    },
+    buttonGroup: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+    },
+    cancelButton: {
+      padding: '8px 16px',
+      marginRight: '10px',
+      backgroundColor: '#f3f4f6',
+      color: '#4b5563',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+    },
+    errorMessage: {
+      color: '#ef4444',
+      fontSize: '14px',
+      marginBottom: '15px',
+    },
   };
 
   // Connect to WebSocket
@@ -224,16 +310,24 @@ const Messaging = ({ currentUser }) => {
       heartbeatOutgoing: 4000,
     });
 
-    stompClient.current.onConnect = () => {
+    stompClient.current.onConnect = (frame) => {
+      console.log('Connected to WebSocket');
+      
       // Subscribe to personal channel for receiving messages
       stompClient.current.subscribe(`/user/${currentUser.id}/queue/messages`, onMessageReceived);
       
       // Subscribe to online status updates
       stompClient.current.subscribe('/topic/presence', onPresenceUpdate);
       
-      // Send join message to let server know user is online
+      // Send connection header with userId for the WebSocketEventListener
+      const headers = {
+        userId: currentUser.id
+      };
+      
+      // Send presence update to server
       stompClient.current.publish({
         destination: '/app/presence',
+        headers: headers,
         body: JSON.stringify({ userId: currentUser.id, status: 'ONLINE' })
       });
     };
@@ -247,6 +341,7 @@ const Messaging = ({ currentUser }) => {
 
   const onMessageReceived = (payload) => {
     const message = JSON.parse(payload.body);
+    console.log('Message received:', message);
     
     // Update messages if it's for the currently selected conversation
     if (selectedConversation && (message.conversationId === selectedConversation.id)) {
@@ -259,9 +354,14 @@ const Messaging = ({ currentUser }) => {
 
   const onPresenceUpdate = (payload) => {
     const presenceData = JSON.parse(payload.body);
+    console.log('Presence update:', presenceData);
+    
     setOnlineUsers(prevOnlineUsers => {
       if (presenceData.status === 'ONLINE') {
-        return [...prevOnlineUsers, presenceData.userId];
+        if (!prevOnlineUsers.includes(presenceData.userId)) {
+          return [...prevOnlineUsers, presenceData.userId];
+        }
+        return prevOnlineUsers;
       } else {
         return prevOnlineUsers.filter(id => id !== presenceData.userId);
       }
@@ -283,7 +383,7 @@ const Messaging = ({ currentUser }) => {
   const fetchMessages = async (conversationId) => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`/api/messages/conversation/${conversationId}`);
+      const response = await axios.get(`/api/messages/conversation/${conversationId}?userId=${currentUser.id}`);
       setMessages(response.data);
       setIsLoading(false);
       
@@ -319,7 +419,7 @@ const Messaging = ({ currentUser }) => {
     setConversations(prevConversations => {
       return prevConversations.map(conv => {
         if (conv.id === message.conversationId) {
-          const unreadCount = conv.id !== selectedConversation?.id ? 
+          const unreadCount = (selectedConversation?.id !== message.conversationId) ? 
             (conv.unreadCount || 0) + 1 : 0;
           
           return {
@@ -351,10 +451,63 @@ const Messaging = ({ currentUser }) => {
         body: JSON.stringify(newMessage)
       });
       
+      // Add message to UI immediately for sender
+      const tempMessage = {...newMessage};
+      setMessages(prevMessages => [...prevMessages, tempMessage]);
+      
       // Clear input
       setMessageText('');
     } catch (error) {
       console.error('Error sending message:', error);
+    }
+  };
+
+  const searchUser = async () => {
+    if (!newContactUsername.trim()) {
+      setError('Please enter a username');
+      return;
+    }
+
+    try {
+      setError('');
+      setIsLoading(true);
+      const response = await axios.get(`/api/users/search?username=${newContactUsername}`);
+      
+      if (response.data) {
+        // Check if conversation already exists
+        const existingConversation = conversations.find(conv => {
+          const otherParticipant = getOtherParticipant(conv);
+          return otherParticipant && otherParticipant.id === response.data.id;
+        });
+
+        if (existingConversation) {
+          setSelectedConversation(existingConversation);
+          setShowNewConversationModal(false);
+          setNewContactUsername('');
+        } else {
+          createNewConversation(response.data.id);
+        }
+      } else {
+        setError('User not found');
+      }
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error searching for user:', error);
+      setError('Error searching for user');
+      setIsLoading(false);
+    }
+  };
+
+  const createNewConversation = async (otherUserId) => {
+    try {
+      const response = await axios.post(`/api/conversations/create?userId1=${currentUser.id}&userId2=${otherUserId}`);
+      setConversations(prev => [...prev, response.data]);
+      setSelectedConversation(response.data);
+      setShowNewConversationModal(false);
+      setNewContactUsername('');
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      setError('Error creating conversation');
     }
   };
 
@@ -368,10 +521,12 @@ const Messaging = ({ currentUser }) => {
   };
 
   const getOtherParticipant = (conversation) => {
-    return conversation.participants.find(p => p.id !== currentUser.id);
+    if (!conversation || !conversation.participants) return {};
+    return conversation.participants.find(p => p.id !== currentUser.id) || {};
   };
 
   const getInitials = (name) => {
+    if (!name) return '';
     return name
       .split(' ')
       .map(word => word[0])
@@ -382,7 +537,7 @@ const Messaging = ({ currentUser }) => {
 
   const filteredConversations = conversations.filter(conv => {
     const otherParticipant = getOtherParticipant(conv);
-    return otherParticipant.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return otherParticipant.name && otherParticipant.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
@@ -397,8 +552,22 @@ const Messaging = ({ currentUser }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          <button 
+            style={styles.addButton} 
+            onClick={() => setShowNewConversationModal(true)}
+          >
+            +
+          </button>
         </div>
         <div style={styles.conversationList}>
+          {isLoading && <div style={{padding: "20px", textAlign: "center"}}>Loading...</div>}
+          
+          {!isLoading && filteredConversations.length === 0 && (
+            <div style={{padding: "20px", textAlign: "center", color: "#6b7280"}}>
+              No conversations found
+            </div>
+          )}
+          
           {filteredConversations.map(conversation => {
             const otherParticipant = getOtherParticipant(conversation);
             const isSelected = selectedConversation?.id === conversation.id;
@@ -467,33 +636,45 @@ const Messaging = ({ currentUser }) => {
             </div>
             
             <div style={styles.chatMessages}>
-              {messages.map((message, index) => {
-                const isSent = message.senderId === currentUser.id;
-                
-                return (
-                  <div
-                    key={index}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: isSent ? 'flex-end' : 'flex-start',
-                      marginBottom: '15px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        ...styles.messageItem,
-                        ...(isSent ? styles.sentMessage : styles.receivedMessage)
-                      }}
-                    >
-                      {message.content}
-                      <div style={styles.timestamp}>
-                        {formatTimestamp(message.timestamp)}
-                      </div>
+              {isLoading ? (
+                <div style={{padding: "20px", textAlign: "center"}}>Loading messages...</div>
+              ) : (
+                <>
+                  {messages.length === 0 && (
+                    <div style={{padding: "20px", textAlign: "center", color: "#6b7280"}}>
+                      No messages yet. Start the conversation!
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+                  
+                  {messages.map((message, index) => {
+                    const isSent = message.senderId === currentUser.id;
+                    
+                    return (
+                      <div
+                        key={index}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: isSent ? 'flex-end' : 'flex-start',
+                          marginBottom: '15px',
+                        }}
+                      >
+                        <div
+                          style={{
+                            ...styles.messageItem,
+                            ...(isSent ? styles.sentMessage : styles.receivedMessage)
+                          }}
+                        >
+                          {message.content}
+                          <div style={styles.timestamp}>
+                            {formatTimestamp(message.timestamp)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
               <div ref={messagesEndRef} />
             </div>
             
@@ -521,6 +702,62 @@ const Messaging = ({ currentUser }) => {
           </div>
         )}
       </div>
+
+      {/* New Conversation Modal */}
+      {showNewConversationModal && (
+        <div style={styles.modal}>
+          <div style={styles.modalContent}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>Start New Conversation</h3>
+              <button 
+                style={styles.closeButton} 
+                onClick={() => {
+                  setShowNewConversationModal(false);
+                  setNewContactUsername('');
+                  setError('');
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            
+            {error && <div style={styles.errorMessage}>{error}</div>}
+            
+            <div style={styles.inputGroup}>
+              <label style={styles.label} htmlFor="username">Username</label>
+              <input
+                id="username"
+                type="text"
+                style={styles.input}
+                value={newContactUsername}
+                onChange={(e) => setNewContactUsername(e.target.value)}
+                placeholder="Enter username"
+                disabled={isLoading}
+              />
+            </div>
+            
+            <div style={styles.buttonGroup}>
+              <button 
+                style={styles.cancelButton}
+                onClick={() => {
+                  setShowNewConversationModal(false);
+                  setNewContactUsername('');
+                  setError('');
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                style={styles.sendButton}
+                onClick={searchUser}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Searching...' : 'Start Chat'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
