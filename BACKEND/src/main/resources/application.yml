@@ -8,6 +8,7 @@ spring:
   data:
     mongodb:
       uri: mongodb+srv://udana:123@databaseslt.gj28k.mongodb.net/test2?retryWrites=true&w=majority&appName=DatabaseSLT
+
 logging:
   level:
     org.springframework.security: DEBUG
