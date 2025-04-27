@@ -4,13 +4,13 @@ import { getStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyAq-bzeOft1YOinRIXPdSG2-jS-6XBuV4I",
-    authDomain: "paf-project-7a03b.firebaseapp.com",
-    projectId: "paf-project-7a03b",
-    storageBucket: "paf-project-7a03b.appspot.com",
-    messagingSenderId: "677468356752",
-    appId: "1:677468356752:web:078cc1f55ece7bd10b9815",
-    measurementId: "G-J78CMWK69V"
+    apiKey: "AIzaSyC7AZXcCLy3z6eBgpMrxEzKj_YcZxDDFlU",
+    authDomain: "healthhub-eab8d.firebaseapp.com",
+    projectId: "healthhub-eab8d",
+    storageBucket: "healthhub-eab8d.appspot.com",
+    messagingSenderId: "390340029523",
+    appId: "1:390340029523:web:154c248dbc7a1fe7822aa6",
+    measurementId: "G-Y0FD5ZVJX9"
 };
 
 // Initialize Firebase

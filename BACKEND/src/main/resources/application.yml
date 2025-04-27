@@ -7,7 +7,7 @@ refresh-token:
 spring:
   data:
     mongodb:
-      uri: mongodb+srv://ashanmadhuwantha:ashan25@cluster0.ugo1u.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0
+      uri: mongodb+srv://udana:123@databaseslt.gj28k.mongodb.net/test2?retryWrites=true&w=majority&appName=DatabaseSLT
 logging:
   level:
     org.springframework.security: DEBUG

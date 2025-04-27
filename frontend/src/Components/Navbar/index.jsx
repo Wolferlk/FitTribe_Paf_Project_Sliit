@@ -7,7 +7,7 @@ import { logout } from "../../app/slices/user.slice";
 import Profile from "../../Pages/Profile";
 import NotificationDropdown from "../NotificationDropdown";
 import UserImage from "../../assets/user.jpeg";
-import { FaDumbbell, FaSearch, FaSignOutAlt, FaUser, FaHome, FaUsers } from "react-icons/fa";
+import { FaDumbbell, FaSearch, FaSignOutAlt, FaUser, FaHome, FaUsers, FaEnvelope } from "react-icons/fa";
 
 Modal.setAppElement("div");
 
@@ -119,6 +119,14 @@ function Navbar() {
                     <Link to="/community" className="nav-link position-relative px-3 text-light">
                       <FaUsers size={20} />
                       <span className="d-lg-none ms-2">Community</span>
+                    </Link>
+                  </li>
+
+                  {/* New Messaging Nav Item */}
+                  <li className="nav-item">
+                    <Link to="/messaging" className="nav-link position-relative px-3 text-light">
+                      <FaEnvelope size={20} />
+                      <span className="d-lg-none ms-2">Messages</span>
                     </Link>
                   </li>
 
