@@ -34,6 +34,10 @@ public class User implements UserDetails {
     private List<String> followedBy;
     private boolean isDeleted = false;
 
+    // OAuth2 fields
+    private String provider; // e.g., "google", "facebook"
+    private String providerId; // unique user ID from provider
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.EMPTY_LIST;
