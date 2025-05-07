@@ -32,6 +32,7 @@ function AuthPage() {
   };
 
   const handleOAuthLogin = (provider) => {
+    
     // Implementation for OAuth 2.0 login with different providers
     console.log(`Logging in with ${provider}`);
     // Redirect to OAuth provider
@@ -278,7 +279,7 @@ function AuthPage() {
                           }}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => handleOAuthLogin("Google")}
+                          onClick={() => window.location.href = "http://localhost:8080/oauth2/authorization/google"}
                         >
                           <FaGoogle /> Google
                         </motion.button>

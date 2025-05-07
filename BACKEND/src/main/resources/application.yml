@@ -4,11 +4,41 @@ access-token:
 refresh-token:
   private: "access-refresh-token-keys/refresh-token-private.key"
   public: "access-refresh-token-keys/refresh-token-public.key"
-spring:
-  data:
-    mongodb:
-      uri: mongodb+srv://udana:123@databaseslt.gj28k.mongodb.net/test2?retryWrites=true&w=majority&appName=DatabaseSLT
 
 logging:
   level:
     org.springframework.security: DEBUG
+
+server:
+  error:
+    whitelabel:
+      enabled: false
+    path: /error
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  data:
+    mongodb:
+      uri: mongodb+srv://udana:123@databaseslt.gj28k.mongodb.net/test2?retryWrites=true&w=majority&appName=DatabaseSLT
+  security:
+    oauth2:
+      client:
+        redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        registration:
+          google:
+            client-id: 818713698356-o743s2vh3ldchim1odjhuiemnjrtcfkp.apps.googleusercontent.com
+            client-secret: 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
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
+            scope: profile, email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            authorization-grant-type: authorization_code
+            client-name: Google
+
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub

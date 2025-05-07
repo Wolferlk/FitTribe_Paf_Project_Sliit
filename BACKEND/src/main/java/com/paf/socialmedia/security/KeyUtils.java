@@ -78,11 +78,11 @@ public class KeyUtils {
                 keyPair = new KeyPair(publicKey, privateKey);
                 return keyPair;
             } catch (NoSuchAlgorithmException | IOException | InvalidKeySpecException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Error loading keys", e);
             }
         } else {
             if (Arrays.stream(environment.getActiveProfiles()).anyMatch(s -> s.equals("prod"))) {
-                throw new RuntimeException("public and private keys don't exist");
+                throw new RuntimeException("Public and private keys don't exist");
             }
         }
 
@@ -105,12 +105,11 @@ public class KeyUtils {
                 fos.write(keySpec.getEncoded());
             }
         } catch (NoSuchAlgorithmException | IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error generating keys", e);
         }
 
         return keyPair;
     }
-
 
     public RSAPublicKey getAccessTokenPublicKey() {
         return (RSAPublicKey) getAccessTokenKeyPair().getPublic();
