@@ -8,7 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/messages")
-@CrossOrigin(origins = "http://localhost:3000")  // Allow CORS for frontend on localhost:3000
+@CrossOrigin(origins = "http://localhost:3000" )  // Allow CORS for frontend on localhost:3000
 public class MessageController {
 
     private final MessageRepository messageRepository;
