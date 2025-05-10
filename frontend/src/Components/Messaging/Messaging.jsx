@@ -1,527 +1,471 @@
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
-import SockJS from 'sockjs-client';
-import { Client } from '@stomp/stompjs';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaRegPaperPlane, FaSpinner, FaRegSmile, FaPaperclip, FaEllipsisV, FaUser } from "react-icons/fa";
+import "bootstrap/dist/css/bootstrap.min.css";
 
-const Messaging = ({ currentUser }) => {
-  const [conversations, setConversations] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
+const Messaging = ({ loggedUser, selectedUser }) => {
   const [messages, setMessages] = useState([]);
-  const [messageText, setMessageText] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState([]);
-  const messagesEndRef = useRef(null);
-  const stompClient = useRef(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
-  // Styles
-  const styles = {
-    container: {
-      display: 'flex',
-      height: '80vh',
-      border: '1px solid #e0e0e0',
-      borderRadius: '12px',
-      overflow: 'hidden',
-      boxShadow: '0 5px 15px rgba(0, 0, 0, 0.05)',
-      backgroundColor: '#fff',
-    },
-    sidebar: {
-      width: '30%',
-      borderRight: '1px solid #e0e0e0',
-      display: 'flex',
-      flexDirection: 'column',
-      backgroundColor: '#f9fafc',
-    },
-    searchContainer: {
-      padding: '15px',
-      borderBottom: '1px solid #e0e0e0',
-    },
-    searchInput: {
-      width: '100%',
-      padding: '10px 15px',
-      borderRadius: '20px',
-      border: '1px solid #e0e0e0',
-      outline: 'none',
-      fontSize: '14px',
-      backgroundColor: '#fff',
-    },
-    conversationList: {
-      flex: 1,
-      overflowY: 'auto',
-      padding: '0',
-    },
-    conversationItem: {
-      padding: '15px',
-      display: 'flex',
-      alignItems: 'center',
-      borderBottom: '1px solid #f0f0f0',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s',
-    },
-    activeConversation: {
-      backgroundColor: '#e7f0ff',
-      borderLeft: '4px solid #3b82f6',
-    },
-    avatar: {
-      width: '40px',
-      height: '40px',
-      borderRadius: '50%',
-      marginRight: '15px',
-      backgroundColor: '#3b82f6',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'white',
-      fontWeight: 'bold',
-    },
-    onlineIndicator: {
-      width: '10px',
-      height: '10px',
-      borderRadius: '50%',
-      backgroundColor: '#10b981',
-      marginLeft: '5px',
-    },
-    offlineIndicator: {
-      width: '10px',
-      height: '10px',
-      borderRadius: '50%',
-      backgroundColor: '#9ca3af',
-      marginLeft: '5px',
-    },
-    chatArea: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    chatHeader: {
-      padding: '15px 20px',
-      borderBottom: '1px solid #e0e0e0',
-      display: 'flex',
-      alignItems: 'center',
-      backgroundColor: '#ffffff',
-    },
-    chatMessages: {
-      flex: 1,
-      overflowY: 'auto',
-      padding: '20px',
-      backgroundColor: '#f9fafc',
-    },
-    messageItem: {
-      marginBottom: '15px',
-      maxWidth: '70%',
-      padding: '10px 15px',
-      borderRadius: '18px',
-      position: 'relative',
-      wordBreak: 'break-word',
-    },
-    sentMessage: {
-      backgroundColor: '#3b82f6',
-      color: 'white',
-      alignSelf: 'flex-end',
-      marginLeft: 'auto',
-      borderBottomRightRadius: '4px',
-    },
-    receivedMessage: {
-      backgroundColor: '#f3f4f6',
-      color: '#1f2937',
-      alignSelf: 'flex-start',
-      borderBottomLeftRadius: '4px',
-    },
-    timestamp: {
-      fontSize: '12px',
-      opacity: 0.7,
-      marginTop: '5px',
-      textAlign: 'right',
-    },
-    inputArea: {
-      padding: '15px',
-      borderTop: '1px solid #e0e0e0',
-      display: 'flex',
-      backgroundColor: '#ffffff',
-    },
-    messageInput: {
-      flex: 1,
-      padding: '12px 15px',
-      borderRadius: '20px',
-      border: '1px solid #e0e0e0',
-      outline: 'none',
-      fontSize: '14px',
-      backgroundColor: '#f9fafc',
-    },
-    sendButton: {
-      marginLeft: '10px',
-      padding: '0 15px',
-      backgroundColor: '#3b82f6',
-      color: 'white',
-      border: 'none',
-      borderRadius: '20px',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s',
-    },
-    emptyState: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100%',
-      color: '#9ca3af',
-    },
-    userName: {
-      fontWeight: 'bold',
-      fontSize: '16px',
-    },
-    lastMessage: {
-      fontSize: '14px',
-      color: '#6b7280',
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      maxWidth: '200px',
-    },
-  };
-
-  // Connect to WebSocket
+  // Fetch all users
   useEffect(() => {
-    if (currentUser) {
-      connectWebSocket();
-    }
-    
-    return () => {
-      if (stompClient.current) {
-        stompClient.current.deactivate();
-      }
-    };
-  }, [currentUser]);
-
-  // Fetch conversations on component mount
-  useEffect(() => {
-    if (currentUser) {
-      fetchConversations();
-    }
-  }, [currentUser]);
-
-  // Fetch messages when a conversation is selected
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation.id);
-    }
-  }, [selectedConversation]);
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const connectWebSocket = () => {
-    const socket = new SockJS('/api/ws');
-    stompClient.current = new Client({
-      webSocketFactory: () => socket,
-      debug: (str) => {
-        console.log(str);
-      },
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-    });
-
-    stompClient.current.onConnect = () => {
-      // Subscribe to personal channel for receiving messages
-      stompClient.current.subscribe(`/user/${currentUser.id}/queue/messages`, onMessageReceived);
-      
-      // Subscribe to online status updates
-      stompClient.current.subscribe('/topic/presence', onPresenceUpdate);
-      
-      // Send join message to let server know user is online
-      stompClient.current.publish({
-        destination: '/app/presence',
-        body: JSON.stringify({ userId: currentUser.id, status: 'ONLINE' })
+    setIsLoadingUsers(true);
+    axios
+      .get("http://localhost:8080/api/users")
+      .then((res) => {
+        setAllUsers(res.data);
+        setIsLoadingUsers(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching users:", err);
+        setIsLoadingUsers(false);
       });
-    };
+  }, []);
 
-    stompClient.current.onStompError = (frame) => {
-      console.error('STOMP error', frame);
-    };
+  
 
-    stompClient.current.activate();
-  };
-
-  const onMessageReceived = (payload) => {
-    const message = JSON.parse(payload.body);
-    
-    // Update messages if it's for the currently selected conversation
-    if (selectedConversation && (message.conversationId === selectedConversation.id)) {
-      setMessages(prevMessages => [...prevMessages, message]);
-    }
-    
-    // Update the conversation list to show the new message
-    updateConversationWithMessage(message);
-  };
-
-  const onPresenceUpdate = (payload) => {
-    const presenceData = JSON.parse(payload.body);
-    setOnlineUsers(prevOnlineUsers => {
-      if (presenceData.status === 'ONLINE') {
-        return [...prevOnlineUsers, presenceData.userId];
-      } else {
-        return prevOnlineUsers.filter(id => id !== presenceData.userId);
-      }
-    });
-  };
-
-  const fetchConversations = async () => {
-    try {
+  // Fetch messages when selectedUser changes
+  useEffect(() => {
+    if (loggedUser?.id && selectedUser?.id) {
       setIsLoading(true);
-      const response = await axios.get(`/api/conversations/user/${currentUser.id}`);
-      setConversations(response.data);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      setIsLoading(false);
-    }
-  };
-
-  const fetchMessages = async (conversationId) => {
-    try {
-      setIsLoading(true);
-      const response = await axios.get(`/api/messages/conversation/${conversationId}`);
-      setMessages(response.data);
-      setIsLoading(false);
-      
-      // Mark messages as read
-      markMessagesAsRead(conversationId);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      setIsLoading(false);
-    }
-  };
-
-  const markMessagesAsRead = async (conversationId) => {
-    try {
-      await axios.put(`/api/messages/read/conversation/${conversationId}/user/${currentUser.id}`);
-      // Update UI to reflect read messages
-      updateConversationReadStatus(conversationId);
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-    }
-  };
-
-  const updateConversationReadStatus = (conversationId) => {
-    setConversations(prevConversations => 
-      prevConversations.map(conv => 
-        conv.id === conversationId 
-          ? { ...conv, unreadCount: 0 } 
-          : conv
-      )
-    );
-  };
-
-  const updateConversationWithMessage = (message) => {
-    setConversations(prevConversations => {
-      return prevConversations.map(conv => {
-        if (conv.id === message.conversationId) {
-          const unreadCount = conv.id !== selectedConversation?.id ? 
-            (conv.unreadCount || 0) + 1 : 0;
+      axios
+        .get(`http://localhost:8080/api/messages/${loggedUser.id}/${selectedUser.id}`)
+        .then((res) => {
+          setMessages(res.data);
+          setIsLoading(false);
           
-          return {
-            ...conv,
-            lastMessage: message.content,
-            lastMessageTime: message.timestamp,
-            unreadCount
-          };
-        }
-        return conv;
-      });
-    });
-  };
+          // Scroll to bottom after messages load
+          setTimeout(() => {
+            const messagesContainer = document.getElementById("messages-container");
+            if (messagesContainer) {
+              messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+          }, 100);
+        })
+        .catch((err) => {
+          console.error("Error fetching messages:", err);
+          setIsLoading(false);
+        });
+    }
+  }, [selectedUser, loggedUser]);
 
-  const sendMessage = async () => {
-    if (!messageText.trim() || !selectedConversation) return;
+  const sendMessage = () => {
+    if (!newMessage.trim()) return;
 
-    const newMessage = {
-      senderId: currentUser.id,
-      conversationId: selectedConversation.id,
-      content: messageText.trim(),
-      timestamp: new Date().toISOString()
+    const messageData = {
+        senderId: loggedUser.id,
+        receiverId: selectedUser.id,
+        content: newMessage,
+        timestamp: new Date().toISOString(),
     };
 
-    try {
-      // Send message via WebSocket
-      stompClient.current.publish({
-        destination: '/app/chat',
-        body: JSON.stringify(newMessage)
+    setIsLoading(true);
+    axios
+      .post("http://localhost:8080/api/messages", messageData)
+      .then((res) => {
+        setMessages((prevMessages) => [...prevMessages, res.data]);
+        setNewMessage("");
+        setIsLoading(false);
+        
+        // Scroll to bottom after message is sent
+        setTimeout(() => {
+          const messagesContainer = document.getElementById("messages-container");
+          if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          }
+        }, 100);
+      })
+      .catch((err) => {
+        console.error("Error sending message:", err);
+        setIsLoading(false);
       });
-      
-      // Clear input
-      setMessageText('');
-    } catch (error) {
-      console.error('Error sending message:', error);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Message animations
+  const messageVariants = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 }
   };
 
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+<Messaging loggedUser={loggedUser} selectedUser={selectedUser} />
 
-  const getOtherParticipant = (conversation) => {
-    return conversation.participants.find(p => p.id !== currentUser.id);
-  };
-
-  const getInitials = (name) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
-
-  const filteredConversations = conversations.filter(conv => {
-    const otherParticipant = getOtherParticipant(conv);
-    return otherParticipant.name.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  return (
-    <div style={styles.container}>
-      {/* Sidebar with conversations */}
-      <div style={styles.sidebar}>
-        <div style={styles.searchContainer}>
-          <input
-            type="text"
-            placeholder="Search conversations..."
-            style={styles.searchInput}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+  // If no user is selected or logged in
+  if (!loggedUser) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="d-flex align-items-center justify-content-center h-100"
+        style={{
+          minHeight: "500px",
+          background: "linear-gradient(135deg, #f8f9fa, #e9ecef)",
+          borderRadius: "20px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+        }}
+      >
+        <div className="text-center p-5">
+          <motion.div
+            animate={{ 
+              scale: [0.9, 1.1, 0.9],
+              opacity: [0.7, 1, 0.7]
+            }}
+            transition={{ 
+              repeat: Infinity,
+              duration: 3
+            }}
+            style={{
+              fontSize: "3rem",
+              marginBottom: "1rem",
+              color: "#2a5298"
+            }}
+          >
+            <FaUser />
+          </motion.div>
+          <h4 className="font-weight-bold" style={{ color: "#1e3c72" }}>Please log in to start messaging</h4>
         </div>
-        <div style={styles.conversationList}>
-          {filteredConversations.map(conversation => {
-            const otherParticipant = getOtherParticipant(conversation);
-            const isSelected = selectedConversation?.id === conversation.id;
-            const isOnline = onlineUsers.includes(otherParticipant.id);
-            
-            return (
-              <div
-                key={conversation.id}
-                style={{
-                  ...styles.conversationItem,
-                  ...(isSelected ? styles.activeConversation : {})
-                }}
-                onClick={() => setSelectedConversation(conversation)}
-              >
-                <div style={styles.avatar}>
-                  {getInitials(otherParticipant.name)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span style={styles.userName}>{otherParticipant.name}</span>
-                    <div style={isOnline ? styles.onlineIndicator : styles.offlineIndicator}></div>
-                  </div>
-                  <div style={styles.lastMessage}>
-                    {conversation.lastMessage || 'Start a conversation...'}
-                  </div>
-                </div>
-                {conversation.unreadCount > 0 && (
-                  <div style={{
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                  }}>
-                    {conversation.unreadCount}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      </motion.div>
+    );
+  }
 
-      {/* Chat area */}
-      <div style={styles.chatArea}>
-        {selectedConversation ? (
-          <>
-            <div style={styles.chatHeader}>
-              <div style={styles.avatar}>
-                {getInitials(getOtherParticipant(selectedConversation).name)}
-              </div>
-              <div>
-                <div style={styles.userName}>
-                  {getOtherParticipant(selectedConversation).name}
-                </div>
-                <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                  {onlineUsers.includes(getOtherParticipant(selectedConversation).id) 
-                    ? 'Online' 
-                    : 'Offline'}
-                </div>
-              </div>
+  if (!selectedUser) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="d-flex flex-column h-100"
+        style={{
+          minHeight: "500px",
+          background: "linear-gradient(135deg, #f8f9fa, #e9ecef)",
+          borderRadius: "20px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+          padding: "1.5rem"
+        }}
+      >
+        <h4 className="mb-4 font-weight-bold" style={{ color: "#1e3c72" }}>Select a user to start chatting</h4>
+        
+        {isLoadingUsers ? (
+          <div className="d-flex justify-content-center my-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading users...</span>
             </div>
-            
-            <div style={styles.chatMessages}>
-              {messages.map((message, index) => {
-                const isSent = message.senderId === currentUser.id;
-                
-                return (
-                  <div
-                    key={index}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: isSent ? 'flex-end' : 'flex-start',
-                      marginBottom: '15px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        ...styles.messageItem,
-                        ...(isSent ? styles.sentMessage : styles.receivedMessage)
-                      }}
-                    >
-                      {message.content}
-                      <div style={styles.timestamp}>
-                        {formatTimestamp(message.timestamp)}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
-            
-            <div style={styles.inputArea}>
-              <input
-                type="text"
-                placeholder="Type a message..."
-                style={styles.messageInput}
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              />
-              <button
-                style={styles.sendButton}
-                onClick={sendMessage}
-              >
-                Send
-              </button>
-            </div>
-          </>
+          </div>
         ) : (
-          <div style={styles.emptyState}>
-            <div style={{ fontSize: '50px', marginBottom: '10px' }}>💬</div>
-            <p>Select a conversation to start messaging</p>
+          <div className="user-list" style={{ overflowY: "auto" }}>
+            {allUsers.length > 0 ? (
+              allUsers.filter(user => user.id !== loggedUser.id).map((user) => (
+                <motion.div
+                  key={user.id}
+                  className="user-item d-flex align-items-center p-3 mb-2"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: "12px",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onClick={() => {
+                    // This would be implemented by the parent component
+                    console.log("Selected user:", user);
+                  }}
+                >
+                  <div 
+                    className="flex-shrink-0 rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                    style={{ width: "45px", height: "45px" }}
+                  >
+                    {user.username ? user.username.charAt(0).toUpperCase() : "U"}
+                  </div>
+                  <div className="ms-3">
+                    <h6 className="mb-0 font-weight-bold">{user.username || "Unknown User"}</h6>
+                    <small className="text-muted">Click to start chat</small>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <div className="text-center text-muted p-4">
+                <p>No users available. Invite someone to join!</p>
+              </div>
+            )}
           </div>
         )}
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className="card border-0 h-100"
+      style={{
+        borderRadius: "20px",
+        overflow: "hidden",
+        boxShadow: "0 15px 50px rgba(0,0,0,0.15)",
+        background: "white"
+      }}
+    >
+      {/* Chat Header */}
+      <div 
+        className="card-header d-flex align-items-center justify-content-between p-3"
+        style={{
+          background: "linear-gradient(45deg, #1e3c72, #2a5298)",
+          borderBottom: "none"
+        }}
+      >
+        <div className="d-flex align-items-center">
+          <motion.div 
+            className="position-relative"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div 
+              className="rounded-circle d-flex align-items-center justify-content-center text-white"
+              style={{ 
+                width: "45px", 
+                height: "45px",
+                backgroundColor: "rgba(255, 255, 255, 0.2)",
+                fontSize: "1.2rem"
+              }}
+            >
+              {selectedUser.username ? selectedUser.username.charAt(0).toUpperCase() : "U"}
+            </div>
+            <span 
+              className="position-absolute bg-success rounded-circle"
+              style={{ width: "12px", height: "12px", bottom: "0", right: "0", border: "2px solid white" }}
+            ></span>
+          </motion.div>
+          
+          <div className="ms-3">
+            <h5 className="mb-0 fw-bold text-white">{selectedUser.username || "User"}</h5>
+            <small className="text-white-50">Online now</small>
+          </div>
+        </div>
+        
+        <motion.button
+          className="btn text-white"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: "50%" }}
+        >
+          <FaEllipsisV />
+        </motion.button>
       </div>
-    </div>
+      
+      {/* Messages Container */}
+      <div 
+        id="messages-container"
+        className="card-body p-4"
+        style={{ 
+          height: "400px", 
+          overflowY: "auto",
+          background: "linear-gradient(135deg, #f8f9fa, #e9ecef)",
+          backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%232a5298' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E\")"
+        }}
+      >
+        {isLoading && messages.length === 0 ? (
+          <div className="d-flex justify-content-center align-items-center h-100">
+            <motion.div 
+              animate={{ 
+                rotate: 360,
+                transition: { duration: 1, repeat: Infinity, ease: "linear" }
+              }}
+            >
+              <FaSpinner className="text-primary" style={{ fontSize: "2rem" }} />
+            </motion.div>
+          </div>
+        ) : (
+          <>
+            {messages.length === 0 ? (
+              <div className="text-center text-muted p-5">
+                <motion.p 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  style={{ fontSize: "1.1rem" }}
+                >
+                  No messages yet. Say hello to {selectedUser.username}!
+                </motion.p>
+              </div>
+            ) : (
+              <AnimatePresence>
+                {messages.map((msg, index) => {
+                  const isSender = msg.senderId === loggedUser.id;
+                  return (
+                    <motion.div
+                      key={msg.id || index}
+                      variants={messageVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className={`d-flex mb-3 ${isSender ? 'justify-content-end' : 'justify-content-start'}`}
+                    >
+                      {!isSender && (
+                        <div 
+                          className="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white me-2 align-self-end"
+                          style={{ width: "30px", height: "30px", minWidth: "30px", fontSize: "0.8rem" }}
+                        >
+                          {selectedUser.username ? selectedUser.username.charAt(0).toUpperCase() : "U"}
+                        </div>
+                      )}
+                      
+                      <div 
+                        className={`py-2 px-3 ${
+                          isSender 
+                            ? 'bg-primary text-white' 
+                            : 'bg-white'
+                        }`}
+                        style={{ 
+                          maxWidth: "75%", 
+                          borderRadius: isSender ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
+                          boxShadow: "0 3px 15px rgba(0,0,0,0.1)"
+                        }}
+                      >
+                        <div style={{ wordBreak: "break-word" }}>{msg.content}</div>
+                        <div 
+                          className={`text-end ${isSender ? 'text-white-50' : 'text-muted'}`}
+                          style={{ fontSize: "0.7rem", marginTop: "4px" }}
+                        >
+                          {new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </div>
+                      </div>
+                      
+                      {isSender && (
+                        <div 
+                          className="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white ms-2 align-self-end"
+                          style={{ width: "30px", height: "30px", minWidth: "30px", fontSize: "0.8rem" }}
+                        >
+                          {loggedUser.username ? loggedUser.username.charAt(0).toUpperCase() : "U"}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            )}
+          </>
+        )}
+      </div>
+      
+      {/* Message Input */}
+      <div 
+        className="card-footer p-3"
+        style={{
+          background: "white",
+          borderTop: "1px solid rgba(0,0,0,0.1)"
+        }}
+      >
+        <div className="d-flex align-items-end">
+          <motion.button
+            className="btn btn-light rounded-circle me-2 d-flex align-items-center justify-content-center"
+            style={{ width: "40px", height: "40px" }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >
+            <FaRegSmile style={{ fontSize: "1.2rem", color: "#6c757d" }} />
+          </motion.button>
+          
+          <motion.button
+            className="btn btn-light rounded-circle me-2 d-flex align-items-center justify-content-center"
+            style={{ width: "40px", height: "40px" }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >
+            <FaPaperclip style={{ fontSize: "1.2rem", color: "#6c757d" }} />
+          </motion.button>
+          
+          <div className="flex-grow-1 me-2">
+            <textarea
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="form-control"
+              placeholder="Type a message..."
+              style={{ 
+                resize: "none", 
+                height: "50px", 
+                borderRadius: "25px",
+                padding: "12px 20px",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+                border: "1px solid #e9ecef"
+              }}
+              rows="1"
+            />
+          </div>
+          
+          <motion.button
+            onClick={sendMessage}
+            disabled={isLoading || !newMessage.trim()}
+            className="btn btn-primary rounded-circle d-flex align-items-center justify-content-center"
+            style={{ 
+              width: "50px", 
+              height: "50px",
+              background: "linear-gradient(45deg, #1e3c72, #2a5298)",
+              border: "none",
+              boxShadow: "0 4px 15px rgba(30, 60, 114, 0.4)"
+            }}
+            whileHover={{ scale: 1.05, boxShadow: "0 6px 20px rgba(30, 60, 114, 0.5)" }}
+            whileTap={{ scale: 0.95 }}
+          >
+            {isLoading ? (
+              <FaSpinner className="spinner" style={{ fontSize: "1.2rem" }} />
+            ) : (
+              <FaRegPaperPlane style={{ fontSize: "1.2rem" }} />
+            )}
+          </motion.button>
+        </div>
+      </div>
+      
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        .spinner {
+          animation: spin 1s linear infinite;
+        }
+        
+        /* Custom scrollbar */
+        #messages-container::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        #messages-container::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+        
+        #messages-container::-webkit-scrollbar-thumb {
+          background: #c1c1c1;
+          border-radius: 10px;
+        }
+        
+        #messages-container::-webkit-scrollbar-thumb:hover {
+          background: #a8a8a8;
+        }
+      `}</style>
+    </motion.div>
   );
 };
 
