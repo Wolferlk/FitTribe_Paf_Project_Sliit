@@ -6,14 +6,14 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,55 +28,50 @@ import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-@EnableGlobalMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity(prePostEnabled = true)
 @Slf4j
+@RequiredArgsConstructor
 public class WebSecurity {
-    @Autowired
-    JwtToUserConverter jwtToUserConverter;
-    @Autowired
-    KeyUtils keyUtils;
-    @Autowired
-    PasswordEncoder passwordEncoder;
-    @Autowired
-    UserDetailsManager userDetailsManager;
+
+    private final JwtToUserConverter jwtToUserConverter;
+    private final KeyUtils keyUtils;
+    private final PasswordEncoder passwordEncoder;
+    private final UserDetailsManager userDetailsManager;
+    private final UserRepository userRepository;
+    private final TokenGenerator tokenGenerator;
+    private final OAuth2AuthenticationSuccessHandler successHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .authorizeHttpRequests((authorize) -> authorize
-                        .antMatchers("/api/auth/*").permitAll()
-                        .antMatchers("/api/users/**").permitAll()
-                        .antMatchers("/api/posts/**").permitAll()
-                        .antMatchers("/api/comments/**").permitAll()
-                        .antMatchers("/api/postshare/**").permitAll()
-                        .antMatchers("/api/notifications/**").permitAll()
-                        .anyRequest().authenticated()
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .anyRequest().authenticated())
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
+                .httpBasic(httpBasic -> httpBasic.disable())
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(successHandler) // Google login success handler
                 )
-                .csrf().disable()
-                .cors().disable()
-                .httpBasic().disable()
-                .oauth2ResourceServer((oauth2) ->
-                        oauth2.jwt((jwt) -> jwt.jwtAuthenticationConverter(jwtToUserConverter))
-                )
-                .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling((exceptions) -> exceptions
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtToUserConverter)))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
-                        .accessDeniedHandler(new BearerTokenAccessDeniedHandler())
-                );
+                        .accessDeniedHandler(new BearerTokenAccessDeniedHandler()));
+
         return http.build();
     }
 
     @Bean
     @Primary
-    JwtDecoder jwtAccessTokenDecoder() {
+    public JwtDecoder jwtAccessTokenDecoder() {
         return NimbusJwtDecoder.withPublicKey(keyUtils.getAccessTokenPublicKey()).build();
     }
 
     @Bean
     @Primary
-    JwtEncoder jwtAccessTokenEncoder() {
-        JWK jwk = new RSAKey
-                .Builder(keyUtils.getAccessTokenPublicKey())
+    public JwtEncoder jwtAccessTokenEncoder() {
+        JWK jwk = new RSAKey.Builder(keyUtils.getAccessTokenPublicKey())
                 .privateKey(keyUtils.getAccessTokenPrivateKey())
                 .build();
         JWKSource<SecurityContext> jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
@@ -85,15 +80,14 @@ public class WebSecurity {
 
     @Bean
     @Qualifier("jwtRefreshTokenDecoder")
-    JwtDecoder jwtRefreshTokenDecoder() {
+    public JwtDecoder jwtRefreshTokenDecoder() {
         return NimbusJwtDecoder.withPublicKey(keyUtils.getRefreshTokenPublicKey()).build();
     }
 
     @Bean
     @Qualifier("jwtRefreshTokenEncoder")
-    JwtEncoder jwtRefreshTokenEncoder() {
-        JWK jwk = new RSAKey
-                .Builder(keyUtils.getRefreshTokenPublicKey())
+    public JwtEncoder jwtRefreshTokenEncoder() {
+        JWK jwk = new RSAKey.Builder(keyUtils.getRefreshTokenPublicKey())
                 .privateKey(keyUtils.getRefreshTokenPrivateKey())
                 .build();
         JWKSource<SecurityContext> jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
@@ -102,17 +96,22 @@ public class WebSecurity {
 
     @Bean
     @Qualifier("jwtRefreshTokenAuthProvider")
-    JwtAuthenticationProvider jwtRefreshTokenAuthProvider() {
+    public JwtAuthenticationProvider jwtRefreshTokenAuthProvider() {
         JwtAuthenticationProvider provider = new JwtAuthenticationProvider(jwtRefreshTokenDecoder());
         provider.setJwtAuthenticationConverter(jwtToUserConverter);
         return provider;
     }
 
     @Bean
-    DaoAuthenticationProvider daoAuthenticationProvider() {
+    public DaoAuthenticationProvider daoAuthenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setPasswordEncoder(passwordEncoder);
         provider.setUserDetailsService(userDetailsManager);
         return provider;
+    }
+
+    @Bean
+    public OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler() {
+        return new OAuth2AuthenticationSuccessHandler(userRepository, tokenGenerator);
     }
 }
