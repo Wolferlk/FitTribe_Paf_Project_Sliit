@@ -5,6 +5,7 @@ import { login, register } from "../../app/actions/user.actions";
 import { FaGoogle, FaFacebook, FaInstagram, FaDumbbell, FaUser, FaLock, FaEnvelope } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import "bootstrap/dist/css/bootstrap.min.css";
+import axios from 'axios';
 
 function AuthPage() {
   const dispatch = useDispatch();
@@ -14,6 +15,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
@@ -33,12 +35,29 @@ function AuthPage() {
 
   const handleOAuthLogin = (provider) => {
     // Implementation for OAuth 2.0 login with different providers
+    if (provider === "google") {
+      window.location.href = "http://localhost:8080/oauth2/authorization/google";  // Adjust for your backend
+    }
+
     console.log(`Logging in with ${provider}`);
     // Redirect to OAuth provider
   };
 
   const toggleAuthMode = () => {
     setIsLogin(!isLogin);
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const idToken = credentialResponse.credential;
+    console.log('Google ID Token:', idToken);
+
+    // Send this token to your backend
+    const res = await axios.post('http://localhost:8080/api/auth/google-login', {
+      idToken: idToken
+    });
+
+    console.log('Backend JWT token:', res.data);
+    // Store JWT in localStorage, etc.
   };
 
   // Animation variants for framer-motion
@@ -278,7 +297,7 @@ function AuthPage() {
                           }}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => handleOAuthLogin("Google")}
+                          onClick={() => window.location.assign('http://localhost:8080/oauth2/authorization/google')}
                         >
                           <FaGoogle /> Google
                         </motion.button>
