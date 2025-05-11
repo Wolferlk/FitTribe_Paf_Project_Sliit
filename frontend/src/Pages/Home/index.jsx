@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { getPosts } from "../../app/actions/post.actions";
 import Posts from "../../Components/Posts";
 import NewUsersSuggest from "../../Components/NewUsersSuggest";
+import Minichat from "../../Components/Messaging/MiniChat";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   FaDumbbell, 
@@ -151,6 +152,9 @@ function Home() {
                   </motion.span>
                 </div>
               </div>
+               <div className="mini-chat-container">
+                  <Minichat darkMode={darkMode} />
+                </div>
             </motion.div>
           </div>
           
@@ -389,6 +393,7 @@ function Home() {
                     <span>3 x 1 min Plank</span>
                   </motion.div>
                 </div>
+               
               </div>
             </motion.div>
           </div>
