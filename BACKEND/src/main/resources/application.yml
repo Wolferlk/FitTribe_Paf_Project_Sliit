@@ -18,3 +18,6 @@ logging:
 google:
   client-id: 818713698356-o743s2vh3ldchim1odjhuiemnjrtcfkp.apps.googleusercontent.com
   client-secret: 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
+
+server:
+  address: 0.0.0.0
