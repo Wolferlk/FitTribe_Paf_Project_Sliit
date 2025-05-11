@@ -18,10 +18,51 @@ const Messaging = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const messagesEndRef = useRef(null);
+  const websocketRef = useRef(null);
+  const [newMessage, setNewMessage] = useState('');
+
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+  if (!selectedUser) return;
+
+  const interval = setInterval(() => {
+    fetchMessages(selectedUser);
+  }, 10000); // 10000 ms = 10 sec
+
+  return () => clearInterval(interval); // Clean up on unmount or selectedUser change
+}, [selectedUser]);
+
+  useEffect(() => {
+  const socket = new WebSocket("ws://localhost:8080/ws/chat");
+  websocketRef.current = socket; // assign correctly
+
+  socket.onopen = () => {
+    console.log("WebSocket connected");
+  };
+
+  socket.onmessage = (event) => {
+    console.log("Received message: ", event.data);
+    const receivedMessage = JSON.parse(event.data);
+    setMessages((prevMessages) => [...prevMessages, receivedMessage]);
+  };
+
+  socket.onerror = (error) => {
+    console.error('WebSocket error:', error);
+  };
+
+  socket.onclose = () => {
+    console.log("WebSocket disconnected");
+  };
+
+  return () => {
+    socket.close();
+  };
+}, []);
+
 
   useEffect(() => {
     // Scroll to bottom whenever messages change
@@ -98,6 +139,15 @@ const Messaging = () => {
           'Access-Control-Allow-Origin': '*',
         },
       });
+      setNewMessage(newMessage);
+
+    try {
+    websocketRef.current.send(JSON.stringify(newMessage));
+    setMessage('');
+    setMessages((prevMessages) => [...prevMessages, newMessage]); // Update the message list locally
+      } catch (error) {
+        console.error("Error sending message:", error);
+  }
       
       setMessage("");
       await fetchMessages(selectedUser);

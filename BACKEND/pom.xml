@@ -50,6 +50,12 @@
 			<version>1.43.3</version> <!-- Add Jackson2 support -->
 		</dependency>
 
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
+
+
 
 
 		<dependency>
