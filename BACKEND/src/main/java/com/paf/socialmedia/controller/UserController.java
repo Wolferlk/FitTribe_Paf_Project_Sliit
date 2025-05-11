@@ -42,51 +42,51 @@ public class UserController {
     // Update the user with a given id
     // Only the user with the same id can update the user
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateUserById(@PathVariable String id,@RequestBody User user){
-        Optional<User> existingUser =  userRepository.findById(id);
-        if(existingUser.isPresent()){
+    public ResponseEntity<?> updateUserById(@PathVariable String id, @RequestBody User user) {
+        Optional<User> existingUser = userRepository.findById(id);
+        if (existingUser.isPresent()) {
             User updateUser = existingUser.get();
-            if(user.getContactNumber() != null) {
+            if (user.getContactNumber() != null) {
                 updateUser.setContactNumber(user.getContactNumber());
             }
-            if(user.getProfileImage() != null) {
+            if (user.getProfileImage() != null) {
                 updateUser.setProfileImage(user.getProfileImage());
             }
-            if(user.getEmail() != null) {
+            if (user.getEmail() != null) {
                 updateUser.setEmail(user.getEmail());
             }
-            if(user.getCountry() != null) {
+            if (user.getCountry() != null) {
                 updateUser.setCountry(user.getCountry());
             }
             return new ResponseEntity<>(userRepository.save(updateUser), HttpStatus.OK);
-        }else{
-            return new ResponseEntity<>("Post Update Error",HttpStatus.NOT_FOUND);
+        } else {
+            return new ResponseEntity<>("Post Update Error", HttpStatus.NOT_FOUND);
         }
     }
 
     // Delete the user with a given id
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<?> deleteUserById(@PathVariable String id){
-        try{
+    public ResponseEntity<?> deleteUserById(@PathVariable String id) {
+        try {
             userRepository.deleteById(id);
-            return new ResponseEntity<>("Success deleted with " + id,HttpStatus.OK);
-        }catch (Exception e){
-            return new ResponseEntity<>(e.getMessage(),HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>("Success deleted with " + id, HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }
-    
+
     // Update user's followed by field ti include another user's ID
     @PutMapping("/follow/{userId}")
-    public ResponseEntity<?> likePostById(@PathVariable String userId,@RequestBody User user){
-        Optional<User> existingUser =  userRepository.findById(userId);
-        if(existingUser.isPresent()){
+    public ResponseEntity<?> likePostById(@PathVariable String userId, @RequestBody User user) {
+        Optional<User> existingUser = userRepository.findById(userId);
+        if (existingUser.isPresent()) {
             User updateUser = existingUser.get();
-            if(user.getFollowedBy() != null) {
+            if (user.getFollowedBy() != null) {
                 updateUser.setFollowedBy(user.getFollowedBy());
             }
             return new ResponseEntity<>(userRepository.save(updateUser), HttpStatus.OK);
-        }else{
-            return new ResponseEntity<>("User Update Error",HttpStatus.NOT_FOUND);
+        } else {
+            return new ResponseEntity<>("User Update Error", HttpStatus.NOT_FOUND);
         }
     }
 }

@@ -43,6 +43,7 @@ public class WebSecurity {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                
                 .authorizeHttpRequests((authorize) -> authorize
                         .antMatchers("/api/auth/*").permitAll()
                         .antMatchers("/api/users/**").permitAll()
@@ -50,6 +51,7 @@ public class WebSecurity {
                         .antMatchers("/api/comments/**").permitAll()
                         .antMatchers("/api/postshare/**").permitAll()
                         .antMatchers("/api/notifications/**").permitAll()
+                        .antMatchers("/api/messages/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .csrf().disable()
@@ -115,4 +117,7 @@ public class WebSecurity {
         provider.setUserDetailsService(userDetailsManager);
         return provider;
     }
+    
+
+
 }
