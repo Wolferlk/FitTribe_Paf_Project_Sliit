@@ -1,525 +1,617 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import SockJS from 'sockjs-client';
-import { Client } from '@stomp/stompjs';
+import { useSelector } from "react-redux";
+import { motion, AnimatePresence } from "framer-motion";
+import "bootstrap/dist/css/bootstrap.min.css";
+import { BsMoonStarsFill, BsSunFill, BsSend, BsPersonCircle } from 'react-icons/bs';
 
-const Messaging = ({ currentUser }) => {
-  const [conversations, setConversations] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
+// Define your API base URL as a constant
+const API_BASE_URL = "http://localhost:8080/api";
+
+const Messaging = () => {
+  const myUser = useSelector((state) => state.user.user);
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [messageText, setMessageText] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [message, setMessage] = useState("");
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [showSidebar, setShowSidebar] = useState(true);
   const messagesEndRef = useRef(null);
-  const stompClient = useRef(null);
 
-  // Styles
-  const styles = {
-    container: {
-      display: 'flex',
-      height: '80vh',
-      border: '1px solid #e0e0e0',
-      borderRadius: '12px',
-      overflow: 'hidden',
-      boxShadow: '0 5px 15px rgba(0, 0, 0, 0.05)',
-      backgroundColor: '#fff',
-    },
-    sidebar: {
-      width: '30%',
-      borderRight: '1px solid #e0e0e0',
-      display: 'flex',
-      flexDirection: 'column',
-      backgroundColor: '#f9fafc',
-    },
-    searchContainer: {
-      padding: '15px',
-      borderBottom: '1px solid #e0e0e0',
-    },
-    searchInput: {
-      width: '100%',
-      padding: '10px 15px',
-      borderRadius: '20px',
-      border: '1px solid #e0e0e0',
-      outline: 'none',
-      fontSize: '14px',
-      backgroundColor: '#fff',
-    },
-    conversationList: {
-      flex: 1,
-      overflowY: 'auto',
-      padding: '0',
-    },
-    conversationItem: {
-      padding: '15px',
-      display: 'flex',
-      alignItems: 'center',
-      borderBottom: '1px solid #f0f0f0',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s',
-    },
-    activeConversation: {
-      backgroundColor: '#e7f0ff',
-      borderLeft: '4px solid #3b82f6',
-    },
-    avatar: {
-      width: '40px',
-      height: '40px',
-      borderRadius: '50%',
-      marginRight: '15px',
-      backgroundColor: '#3b82f6',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'white',
-      fontWeight: 'bold',
-    },
-    onlineIndicator: {
-      width: '10px',
-      height: '10px',
-      borderRadius: '50%',
-      backgroundColor: '#10b981',
-      marginLeft: '5px',
-    },
-    offlineIndicator: {
-      width: '10px',
-      height: '10px',
-      borderRadius: '50%',
-      backgroundColor: '#9ca3af',
-      marginLeft: '5px',
-    },
-    chatArea: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    chatHeader: {
-      padding: '15px 20px',
-      borderBottom: '1px solid #e0e0e0',
-      display: 'flex',
-      alignItems: 'center',
-      backgroundColor: '#ffffff',
-    },
-    chatMessages: {
-      flex: 1,
-      overflowY: 'auto',
-      padding: '20px',
-      backgroundColor: '#f9fafc',
-    },
-    messageItem: {
-      marginBottom: '15px',
-      maxWidth: '70%',
-      padding: '10px 15px',
-      borderRadius: '18px',
-      position: 'relative',
-      wordBreak: 'break-word',
-    },
-    sentMessage: {
-      backgroundColor: '#3b82f6',
-      color: 'white',
-      alignSelf: 'flex-end',
-      marginLeft: 'auto',
-      borderBottomRightRadius: '4px',
-    },
-    receivedMessage: {
-      backgroundColor: '#f3f4f6',
-      color: '#1f2937',
-      alignSelf: 'flex-start',
-      borderBottomLeftRadius: '4px',
-    },
-    timestamp: {
-      fontSize: '12px',
-      opacity: 0.7,
-      marginTop: '5px',
-      textAlign: 'right',
-    },
-    inputArea: {
-      padding: '15px',
-      borderTop: '1px solid #e0e0e0',
-      display: 'flex',
-      backgroundColor: '#ffffff',
-    },
-    messageInput: {
-      flex: 1,
-      padding: '12px 15px',
-      borderRadius: '20px',
-      border: '1px solid #e0e0e0',
-      outline: 'none',
-      fontSize: '14px',
-      backgroundColor: '#f9fafc',
-    },
-    sendButton: {
-      marginLeft: '10px',
-      padding: '0 15px',
-      backgroundColor: '#3b82f6',
-      color: 'white',
-      border: 'none',
-      borderRadius: '20px',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s',
-    },
-    emptyState: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100%',
-      color: '#9ca3af',
-    },
-    userName: {
-      fontWeight: 'bold',
-      fontSize: '16px',
-    },
-    lastMessage: {
-      fontSize: '14px',
-      color: '#6b7280',
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      maxWidth: '200px',
-    },
-  };
-
-  // Connect to WebSocket
   useEffect(() => {
-    if (currentUser) {
-      connectWebSocket();
-    }
-    
-    return () => {
-      if (stompClient.current) {
-        stompClient.current.deactivate();
-      }
-    };
-  }, [currentUser]);
+    fetchUsers();
+  }, []);
 
-  // Fetch conversations on component mount
   useEffect(() => {
-    if (currentUser) {
-      fetchConversations();
-    }
-  }, [currentUser]);
-
-  // Fetch messages when a conversation is selected
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation.id);
-    }
-  }, [selectedConversation]);
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom();
+    // Scroll to bottom whenever messages change
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const connectWebSocket = () => {
-    const socket = new SockJS('/api/ws');
-    stompClient.current = new Client({
-      webSocketFactory: () => socket,
-      debug: (str) => {
-        console.log(str);
-      },
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-    });
-
-    stompClient.current.onConnect = () => {
-      // Subscribe to personal channel for receiving messages
-      stompClient.current.subscribe(`/user/${currentUser.id}/queue/messages`, onMessageReceived);
-      
-      // Subscribe to online status updates
-      stompClient.current.subscribe('/topic/presence', onPresenceUpdate);
-      
-      // Send join message to let server know user is online
-      stompClient.current.publish({
-        destination: '/app/presence',
-        body: JSON.stringify({ userId: currentUser.id, status: 'ONLINE' })
-      });
-    };
-
-    stompClient.current.onStompError = (frame) => {
-      console.error('STOMP error', frame);
-    };
-
-    stompClient.current.activate();
-  };
-
-  const onMessageReceived = (payload) => {
-    const message = JSON.parse(payload.body);
-    
-    // Update messages if it's for the currently selected conversation
-    if (selectedConversation && (message.conversationId === selectedConversation.id)) {
-      setMessages(prevMessages => [...prevMessages, message]);
-    }
-    
-    // Update the conversation list to show the new message
-    updateConversationWithMessage(message);
-  };
-
-  const onPresenceUpdate = (payload) => {
-    const presenceData = JSON.parse(payload.body);
-    setOnlineUsers(prevOnlineUsers => {
-      if (presenceData.status === 'ONLINE') {
-        return [...prevOnlineUsers, presenceData.userId];
-      } else {
-        return prevOnlineUsers.filter(id => id !== presenceData.userId);
-      }
-    });
-  };
-
-  const fetchConversations = async () => {
+  const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`/api/conversations/user/${currentUser.id}`);
-      setConversations(response.data);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      setIsLoading(false);
-    }
-  };
-
-  const fetchMessages = async (conversationId) => {
-    try {
-      setIsLoading(true);
-      const response = await axios.get(`/api/messages/conversation/${conversationId}`);
-      setMessages(response.data);
-      setIsLoading(false);
-      
-      // Mark messages as read
-      markMessagesAsRead(conversationId);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      setIsLoading(false);
-    }
-  };
-
-  const markMessagesAsRead = async (conversationId) => {
-    try {
-      await axios.put(`/api/messages/read/conversation/${conversationId}/user/${currentUser.id}`);
-      // Update UI to reflect read messages
-      updateConversationReadStatus(conversationId);
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-    }
-  };
-
-  const updateConversationReadStatus = (conversationId) => {
-    setConversations(prevConversations => 
-      prevConversations.map(conv => 
-        conv.id === conversationId 
-          ? { ...conv, unreadCount: 0 } 
-          : conv
-      )
-    );
-  };
-
-  const updateConversationWithMessage = (message) => {
-    setConversations(prevConversations => {
-      return prevConversations.map(conv => {
-        if (conv.id === message.conversationId) {
-          const unreadCount = conv.id !== selectedConversation?.id ? 
-            (conv.unreadCount || 0) + 1 : 0;
-          
-          return {
-            ...conv,
-            lastMessage: message.content,
-            lastMessageTime: message.timestamp,
-            unreadCount
-          };
+      const res = await axios.get(`${API_BASE_URL}/users`, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
         }
-        return conv;
       });
-    });
-  };
-
-  const sendMessage = async () => {
-    if (!messageText.trim() || !selectedConversation) return;
-
-    const newMessage = {
-      senderId: currentUser.id,
-      conversationId: selectedConversation.id,
-      content: messageText.trim(),
-      timestamp: new Date().toISOString()
-    };
-
-    try {
-      // Send message via WebSocket
-      stompClient.current.publish({
-        destination: '/app/chat',
-        body: JSON.stringify(newMessage)
-      });
-      
-      // Clear input
-      setMessageText('');
+      setUsers(res.data);
+      setIsLoading(false);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error fetching users:", error);
+      setIsLoading(false);
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const fetchMessages = async (userId) => {
+  if (!myUser?.id || !userId) return;
+
+  try {
+    setIsLoading(true);
+    setSelectedUser(userId);
+
+    // Fetch messages from both endpoints concurrently
+    const [res1, res2] = await Promise.all([
+      axios.get(`${API_BASE_URL}/messages/${myUser.id}/${userId}`, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        }
+      }),
+      axios.get(`${API_BASE_URL}/messages/${userId}/${myUser.id}`, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        }
+      })
+    ]);
+
+    // Merge and sort messages by timestamp
+    const mergedMessages = [...res1.data, ...res2.data].sort((a, b) => 
+      new Date(a.timestamp) - new Date(b.timestamp)
+    );
+
+    setMessages(mergedMessages);
+    console.log("Merged Messages fetched:", mergedMessages);
+    setIsLoading(false);
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    setIsLoading(false);
+  }
+};
+
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    
+    if (!message.trim() || !selectedUser || !myUser?.id) return;
+    
+    try {
+      setIsLoading(true);
+      
+      await axios.post(`${API_BASE_URL}/messages/send`, {
+        senderId: myUser.id,
+        receiverId: selectedUser,
+        content: message.trim(),
+      }, {
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+      
+      setMessage("");
+      await fetchMessages(selectedUser);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setIsLoading(false);
+    }
   };
 
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
   };
 
-  const getOtherParticipant = (conversation) => {
-    return conversation.participants.find(p => p.id !== currentUser.id);
+  const toggleSidebar = () => {
+    setShowSidebar(!showSidebar);
   };
 
-  const getInitials = (name) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
+  // Find the selected user name
+  const selectedUserName = users.find(user => user.id === selectedUser)?.username;
+  
+  const getRandomGradient = (userId) => {
+    const gradients = [
+      'linear-gradient(45deg, #ff9a9e, #fad0c4)',
+      'linear-gradient(45deg, #a1c4fd, #c2e9fb)',
+      'linear-gradient(45deg, #ffecd2, #fcb69f)',
+      'linear-gradient(45deg, #84fab0, #8fd3f4)',
+      'linear-gradient(45deg, #d4fc79, #96e6a1)',
+    ];
+    
+    // Use the userId to deterministically select a gradient
+    const index = userId?.charCodeAt(0) % gradients.length || 0;
+    return gradients[index];
   };
 
-  const filteredConversations = conversations.filter(conv => {
-    const otherParticipant = getOtherParticipant(conv);
-    return otherParticipant.name.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  const getInitialsBackground = (userId) => {
+    const colors = [
+      '#FF6B6B', '#4ECDC4', '#FFE66D', '#6699CC', '#FF8C42',
+      '#7BC950', '#5D2E8C', '#FF5964', '#17BEBB', '#FAD02C'
+    ];
+    
+    const index = userId?.charCodeAt(0) % colors.length || 0;
+    return colors[index];
+  };
 
   return (
-    <div style={styles.container}>
-      {/* Sidebar with conversations */}
-      <div style={styles.sidebar}>
-        <div style={styles.searchContainer}>
-          <input
-            type="text"
-            placeholder="Search conversations..."
-            style={styles.searchInput}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div style={styles.conversationList}>
-          {filteredConversations.map(conversation => {
-            const otherParticipant = getOtherParticipant(conversation);
-            const isSelected = selectedConversation?.id === conversation.id;
-            const isOnline = onlineUsers.includes(otherParticipant.id);
-            
-            return (
-              <div
-                key={conversation.id}
+    <div style={{
+      height: '100vh',
+      overflow: 'hidden',
+      background: isDarkMode ? '#1a1a2e' : '#f8f9fa',
+      color: isDarkMode ? '#e6e6e6' : '#212529',
+      transition: 'all 0.3s ease'
+    }}>
+      <div className="container-fluid h-100 p-0">
+        <div className="row h-100 g-0">
+          {/* Sidebar toggle button for mobile */}
+          <div className="d-lg-none position-fixed start-0 top-50 translate-middle-y z-3">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="btn rounded-circle shadow-sm border-0 p-2"
+              onClick={toggleSidebar}
+              style={{
+                background: isDarkMode ? '#2d3748' : '#ffffff',
+                color: isDarkMode ? '#ffffff' : '#333333',
+                width: '40px',
+                height: '40px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              {showSidebar ? '←' : '→'}
+            </motion.button>
+          </div>
+
+          {/* Sidebar with users */}
+          <AnimatePresence>
+            {(showSidebar || window.innerWidth > 992) && (
+              <motion.div
+                initial={{ x: -300, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -300, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="col-lg-3 col-md-4 col-sm-12 p-0"
                 style={{
-                  ...styles.conversationItem,
-                  ...(isSelected ? styles.activeConversation : {})
+                  background: isDarkMode ? '#16213e' : '#ffffff',
+                  borderRight: isDarkMode ? '1px solid #2a2a4a' : '1px solid #e9ecef',
+                  position: window.innerWidth <= 992 ? 'fixed' : 'relative',
+                  height: '100%',
+                  zIndex: 2,
+                  boxShadow: isDarkMode ? '4px 0 10px rgba(0,0,0,0.2)' : '4px 0 10px rgba(0,0,0,0.05)'
                 }}
-                onClick={() => setSelectedConversation(conversation)}
               >
-                <div style={styles.avatar}>
-                  {getInitials(otherParticipant.name)}
+                <div className="d-flex justify-content-between align-items-center p-3" style={{
+                  borderBottom: isDarkMode ? '1px solid #2a2a4a' : '1px solid #e9ecef',
+                  background: isDarkMode ? '#1e2a47' : '#f8f9fa'
+                }}>
+                  <h4 className="m-0 fw-bold" style={{ 
+                    fontSize: '1.2rem',
+                    background: isDarkMode ? 'linear-gradient(45deg, #a1c4fd, #c2e9fb)' : 'linear-gradient(45deg, #5e72e4, #825ee4)', 
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>
+                    Contacts
+                  </h4>
+                  <motion.button
+                    whileHover={{ rotate: 30, scale: 1.2 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={toggleDarkMode}
+                    className="btn border-0"
+                    style={{
+                      background: 'transparent',
+                      color: isDarkMode ? '#ffd60a' : '#6c757d'
+                    }}
+                  >
+                    {isDarkMode ? <BsSunFill size={18} /> : <BsMoonStarsFill size={18} />}
+                  </motion.button>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span style={styles.userName}>{otherParticipant.name}</span>
-                    <div style={isOnline ? styles.onlineIndicator : styles.offlineIndicator}></div>
-                  </div>
-                  <div style={styles.lastMessage}>
-                    {conversation.lastMessage || 'Start a conversation...'}
-                  </div>
+                
+                <div className="p-2" style={{ overflowY: 'auto', height: 'calc(100% - 60px)' }}>
+                  {isLoading && users.length === 0 ? (
+                    <div className="d-flex justify-content-center mt-4">
+                      <div className="spinner-grow spinner-grow-sm" role="status" style={{ 
+                        color: isDarkMode ? '#a1c4fd' : '#5e72e4' 
+                      }}></div>
+                    </div>
+                  ) : (
+                    <AnimatePresence>
+                      {users.map(user => (
+                        <motion.button
+                          key={user.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          transition={{ duration: 0.3 }}
+                          whileHover={{ 
+                            scale: 1.02,
+                            boxShadow: isDarkMode ? '0 4px 8px rgba(0,0,0,0.3)' : '0 4px 8px rgba(0,0,0,0.1)'
+                          }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => {
+                            fetchMessages(user.id);
+                            if (window.innerWidth <= 992) {
+                              setShowSidebar(false);
+                            }
+                          }}
+                          className="btn w-100 text-start p-3 mb-2 border-0 d-flex align-items-center"
+                          style={{
+                            background: selectedUser === user.id 
+                              ? isDarkMode 
+                                ? 'linear-gradient(45deg, #0d6efd, #0dcaf0)' 
+                                : 'linear-gradient(45deg, #5e72e4, #825ee4)'
+                              : isDarkMode ? '#1e2a47' : '#ffffff',
+                            borderRadius: '12px',
+                            color: selectedUser === user.id ? '#ffffff' : isDarkMode ? '#e6e6e6' : '#495057',
+                            transition: 'all 0.3s ease',
+                            boxShadow: isDarkMode 
+                              ? '0 2px 5px rgba(0,0,0,0.2)' 
+                              : '0 2px 5px rgba(0,0,0,0.05)'
+                          }}
+                        >
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            background: selectedUser === user.id 
+                              ? 'rgba(255,255,255,0.3)' 
+                              : getInitialsBackground(user.id),
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginRight: '12px',
+                            color: '#ffffff',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}>
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
+                          <span style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>{user.username}</span>
+                          
+                          {selectedUser === user.id && (
+                            <motion.span
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="ms-auto bg-light rounded-circle"
+                              style={{ 
+                                width: '8px', 
+                                height: '8px',
+                                background: isDarkMode ? '#ffffff' : '#5e72e4'
+                              }}
+                            />
+                          )}
+                        </motion.button>
+                      ))}
+                    </AnimatePresence>
+                  )}
                 </div>
-                {conversation.unreadCount > 0 && (
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Chat area */}
+          <motion.div 
+            className={`col p-0 d-flex flex-column ${showSidebar && window.innerWidth <= 992 ? 'opacity-50' : ''}`}
+            style={{ 
+              height: '100%',
+              filter: showSidebar && window.innerWidth <= 992 ? 'blur(3px)' : 'none',
+              pointerEvents: showSidebar && window.innerWidth <= 992 ? 'none' : 'auto',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            {/* Chat header */}
+            <div style={{
+              padding: '16px',
+              borderBottom: isDarkMode ? '1px solid #2a2a4a' : '1px solid #e9ecef',
+              background: isDarkMode ? '#1e2a47' : '#ffffff',
+              backdropFilter: 'blur(10px)',
+              position: 'sticky',
+              top: 0,
+              zIndex: 1
+            }}>
+              {selectedUser ? (
+                <div className="d-flex align-items-center">
                   <div style={{
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
+                    width: '40px',
+                    height: '40px',
                     borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
+                    background: getRandomGradient(selectedUser),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '12px',
+                    marginRight: '12px',
+                    color: '#ffffff',
+                    fontWeight: 'bold'
                   }}>
-                    {conversation.unreadCount}
+                    {selectedUserName?.charAt(0).toUpperCase()}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Chat area */}
-      <div style={styles.chatArea}>
-        {selectedConversation ? (
-          <>
-            <div style={styles.chatHeader}>
-              <div style={styles.avatar}>
-                {getInitials(getOtherParticipant(selectedConversation).name)}
-              </div>
-              <div>
-                <div style={styles.userName}>
-                  {getOtherParticipant(selectedConversation).name}
-                </div>
-                <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                  {onlineUsers.includes(getOtherParticipant(selectedConversation).id) 
-                    ? 'Online' 
-                    : 'Offline'}
-                </div>
-              </div>
-            </div>
-            
-            <div style={styles.chatMessages}>
-              {messages.map((message, index) => {
-                const isSent = message.senderId === currentUser.id;
-                
-                return (
-                  <div
-                    key={index}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: isSent ? 'flex-end' : 'flex-start',
-                      marginBottom: '15px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        ...styles.messageItem,
-                        ...(isSent ? styles.sentMessage : styles.receivedMessage)
-                      }}
-                    >
-                      {message.content}
-                      <div style={styles.timestamp}>
-                        {formatTimestamp(message.timestamp)}
-                      </div>
+                  <div>
+                    <h4 className="m-0 fw-bold" style={{ fontSize: '1.1rem' }}>
+                      {selectedUserName || 'Chat'}
+                    </h4>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: isDarkMode ? '#a1c4fd' : '#5e72e4'
+                    }}>
+                      <span className="me-1" style={{ 
+                        display: 'inline-block',
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: '#4cd137',
+                        marginBottom: '1px'
+                      }}></span>
+                      Online
                     </div>
                   </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
+                </div>
+              ) : (
+                <h4 className="m-0 fw-bold d-flex align-items-center" style={{ fontSize: '1.1rem' }}>
+                  <BsPersonCircle className="me-2" size={20} />
+                  Select a contact to start chatting
+                </h4>
+              )}
             </div>
-            
-            <div style={styles.inputArea}>
-              <input
-                type="text"
-                placeholder="Type a message..."
-                style={styles.messageInput}
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              />
-              <button
-                style={styles.sendButton}
-                onClick={sendMessage}
+
+            {/* Messages area */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '20px',
+              background: isDarkMode 
+                ? 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%232d3748\' fill-opacity=\'0.1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' 
+                : 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e9ecef\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+              backgroundColor: isDarkMode ? '#0f172a' : '#f8f9fa'
+            }}>
+              {isLoading && messages.length === 0 ? (
+                <div className="d-flex flex-column align-items-center justify-content-center h-100">
+                  <div className="spinner-border" role="status" style={{ 
+                    color: isDarkMode ? '#a1c4fd' : '#5e72e4',
+                    width: '2rem',
+                    height: '2rem'
+                  }}></div>
+                  <p className="mt-3" style={{ 
+                    fontSize: '0.9rem',
+                    color: isDarkMode ? '#a1c4fd' : '#5e72e4'
+                  }}>Loading messages...</p>
+                </div>
+              ) : messages.length > 0 ? (
+                <div>
+                  <AnimatePresence>
+                    {messages.map((msg, idx) => (
+                      <motion.div 
+                        key={idx}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: idx * 0.05 }}
+                        className={`d-flex mb-3 ${msg.senderId === myUser?.id ? 'justify-content-end' : 'justify-content-start'}`}
+                      >
+                        {msg.senderId !== myUser?.id && (
+                          <div style={{
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '50%',
+                            background: getInitialsBackground(msg.senderId),
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginRight: '8px',
+                            color: '#ffffff',
+                            fontSize: '0.8rem',
+                            alignSelf: 'flex-end'
+                          }}>
+                            {selectedUserName?.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div style={{
+                          maxWidth: '75%',
+                          padding: '10px 16px',
+                          borderRadius: '18px',
+                          background: msg.senderId === myUser?.id
+                            ? isDarkMode 
+                              ? 'linear-gradient(135deg, #0d6efd, #0dcaf0)' 
+                              : 'linear-gradient(135deg, #5e72e4, #825ee4)'
+                            : isDarkMode ? '#2d3748' : '#ffffff',
+                          color: msg.senderId === myUser?.id ? '#ffffff' : isDarkMode ? '#e6e6e6' : '#212529',
+                          boxShadow: isDarkMode
+                            ? '0 2px 10px rgba(0,0,0,0.2)'
+                            : '0 2px 10px rgba(0,0,0,0.05)',
+                          borderTopRightRadius: msg.senderId === myUser?.id ? '4px' : '18px',
+                          borderTopLeftRadius: msg.senderId === myUser?.id ? '18px' : '4px',
+                          wordWrap: 'break-word'
+                        }}>
+                          <div>{msg.content}</div>
+                          <div style={{
+                            fontSize: '0.7rem',
+                            textAlign: 'right',
+                            marginTop: '4px',
+                            opacity: 0.7
+                          }}>
+                            {new Date(msg.timestamp).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </div>
+                        </div>
+                        {msg.senderId === myUser?.id && (
+                          <div style={{
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '50%',
+                            background: getInitialsBackground(msg.senderId),
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginLeft: '8px',
+                            color: '#ffffff',
+                            fontSize: '0.8rem',
+                            alignSelf: 'flex-end'
+                          }}>
+                            {myUser?.username?.charAt(0).toUpperCase() || 'M'}
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  <div ref={messagesEndRef} />
+                </div>
+              ) : selectedUser ? (
+                <div className="d-flex flex-column align-items-center justify-content-center h-100">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ 
+                      type: "spring",
+                      stiffness: 260,
+                      damping: 20
+                    }}
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      background: isDarkMode ? '#2d3748' : '#e9ecef',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '16px'
+                    }}
+                  >
+                    <BsPersonCircle size={40} style={{ 
+                      color: isDarkMode ? '#a1c4fd' : '#5e72e4' 
+                    }} />
+                  </motion.div>
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center mb-0"
+                    style={{ 
+                      color: isDarkMode ? '#a1c4fd' : '#5e72e4',
+                      maxWidth: '300px'
+                    }}
+                  >
+                    No messages yet. Start a conversation with {selectedUserName}!
+                  </motion.p>
+                </div>
+              ) : (
+                <div className="d-flex flex-column align-items-center justify-content-center h-100">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ 
+                      type: "spring",
+                      stiffness: 260,
+                      damping: 20
+                    }}
+                    style={{
+                      width: '100px',
+                      height: '100px',
+                      borderRadius: '50%',
+                      background: isDarkMode 
+                        ? 'linear-gradient(135deg, #2d3748, #1a202c)' 
+                        : 'linear-gradient(135deg, #e9ecef, #dee2e6)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '20px',
+                      boxShadow: isDarkMode
+                        ? '0 8px 32px rgba(0, 0, 0, 0.3)'
+                        : '0 8px 32px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
+                    <BsPersonCircle size={50} style={{ 
+                      color: isDarkMode ? '#a1c4fd' : '#5e72e4' 
+                    }} />
+                  </motion.div>
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center mb-0"
+                    style={{ 
+                      color: isDarkMode ? '#a1c4fd' : '#5e72e4',
+                      fontSize: '1.1rem',
+                      maxWidth: '350px',
+                      lineHeight: '1.6'
+                    }}
+                  >
+                    Select a contact from the sidebar to start messaging
+                  </motion.p>
+                </div>
+              )}
+            </div>
+
+            {/* Message input */}
+            {selectedUser && (
+              <form 
+                onSubmit={sendMessage}
+                style={{
+                  padding: '16px',
+                  borderTop: isDarkMode ? '1px solid #2a2a4a' : '1px solid #e9ecef',
+                  background: isDarkMode ? '#1e2a47' : '#ffffff'
+                }}
               >
-                Send
-              </button>
-            </div>
-          </>
-        ) : (
-          <div style={styles.emptyState}>
-            <div style={{ fontSize: '50px', marginBottom: '10px' }}>💬</div>
-            <p>Select a conversation to start messaging</p>
-          </div>
-        )}
+                <div className="input-group">
+                  <input 
+                    type="text" 
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className="form-control"
+                    placeholder="Type a message..."
+                    disabled={isLoading}
+                    style={{
+                      background: isDarkMode ? '#2d3748' : '#f8f9fa',
+                      color: isDarkMode ? '#e6e6e6' : '#212529',
+                      border: isDarkMode ? '1px solid #4a5568' : '1px solid #ced4da',
+                      borderRadius: '20px 0 0 20px',
+                      padding: '12px 16px',
+                      boxShadow: 'none'
+                    }}
+                  />
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="submit"
+                    disabled={isLoading || !message.trim()}
+                    className="btn d-flex align-items-center justify-content-center"
+                    style={{
+                      background: isLoading || !message.trim()
+                        ? isDarkMode ? '#4a5568' : '#e9ecef'
+                        : isDarkMode
+                          ? 'linear-gradient(135deg, #0d6efd, #0dcaf0)'
+                          : 'linear-gradient(135deg, #5e72e4, #825ee4)',
+                      color: isLoading || !message.trim()
+                        ? isDarkMode ? '#a0aec0' : '#6c757d'
+                        : '#ffffff',
+                      borderRadius: '0 20px 20px 0',
+                      width: '56px',
+                      border: 'none'
+                    }}
+                  >
+                    {isLoading ? (
+                      <div className="spinner-border spinner-border-sm" role="status"></div>
+                    ) : (
+                      <BsSend />
+                    )}
+                  </motion.button>
+                </div>
+              </form>
+            )}
+          </motion.div>
+        </div>
       </div>
     </div>
   );

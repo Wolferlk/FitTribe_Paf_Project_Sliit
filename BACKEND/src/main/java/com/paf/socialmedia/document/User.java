@@ -58,4 +58,9 @@ public class User implements UserDetails {
     public boolean isEnabled() {
         return true;
     }
+
+    public void setImageUrl(String pictureUrl) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setImageUrl'");
+    }
 }

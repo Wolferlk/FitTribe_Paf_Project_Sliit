@@ -6,6 +6,8 @@ import com.paf.socialmedia.dto.SignupDTO;
 import com.paf.socialmedia.dto.TokenDTO;
 import com.paf.socialmedia.repository.UserRepository;
 import com.paf.socialmedia.security.TokenGenerator;
+import com.paf.socialmedia.service.OAuth2Service;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -18,6 +20,9 @@ import org.springframework.security.oauth2.server.resource.BearerTokenAuthentica
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.web.bind.annotation.*;
+import com.paf.socialmedia.service.OAuth2Service;
+import com.paf.socialmedia.dto.GoogleLoginRequest;
+import com.paf.socialmedia.dto.TokenDTO;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -33,6 +38,9 @@ public class AuthController {
     UserDetailsManager userDetailsManager;
 
     @Autowired
+    private OAuth2Service oAuth2Service;
+
+    @Autowired
     TokenGenerator tokenGenerator;
 
     @Autowired
@@ -46,8 +54,7 @@ public class AuthController {
     UserRepository userRepository;
 
 
-    // Register a new user and accepts 'SignupDTO' object
-    // Creates a new user in the database based on username and password
+
     @PostMapping("/register")
     public ResponseEntity register(@RequestBody SignupDTO signupDTO) {
         User user = new User(signupDTO.getUsername(), signupDTO.getPassword());
@@ -56,6 +63,11 @@ public class AuthController {
         Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(user, signupDTO.getPassword(), Collections.EMPTY_LIST);
 
         return ResponseEntity.ok(tokenGenerator.createToken(authentication));
+    }
+
+    @PostMapping("/google-login")
+    public TokenDTO googleLogin(@RequestBody GoogleLoginRequest request) {
+        return oAuth2Service.loginWithGoogle(request.getIdToken());
     }
 
     // Login a user and accepts 'LoginDTO' object
